@@ -2,18 +2,17 @@ import React, { useState, useEffect, useContext, createContext, useMemo } from "
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-// 🔒 Your Worker URL (Backend)
-const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/"; 
-
-// Supabase (Auth)
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
 // 2. TYPES & DATA STRUCTURES
@@ -42,8 +41,20 @@ interface AnalysisData {
     checks: CheckItem[];
 }
 
+// 🛡️ DEFAULT EMPTY STATE (Prevents Crashes)
+const DEFAULT_ANALYSIS: AnalysisData = {
+    overallScore: 0,
+    verdict: "Analysis unavailable. Please try again.",
+    categories: {
+        visual: { score: 0, feedback: "No visual data.", fix: "" },
+        audio: { score: 0, feedback: "No audio data.", fix: "" },
+        copy: { score: 0, feedback: "No copy data.", fix: "" }
+    },
+    checks: []
+};
+
 // ==========================================
-// 3. AI SERVICE (Via Worker)
+// 3. AI SERVICE (The Brain)
 // ==========================================
 const SYSTEM_PROMPT = `
 You are a brutal, data-driven Creative Director. Analyze this video ad.
@@ -72,43 +83,37 @@ Structure:
 }
 `;
 
-const analyzeVideo = async (base64Data: string, mimeType: string, email: string): Promise<AnalysisData> => {
+const analyzeVideo = async (base64Data: string, mimeType: string): Promise<AnalysisData> => {
     try {
-        // 🔒 Sending data to your Cloudflare Worker
-        const response = await fetch(WORKER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                base64Data: base64Data,
-                mimeType: mimeType,
-                licenseKey: email, // Tracks user usage in worker logs
-                systemPrompt: SYSTEM_PROMPT // Sends the new 8th-grade rules
-            })
-        });
-
-        const json = await response.json();
-
-        if (json.error) throw new Error(json.error.message || "Worker Error");
-        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned");
-
-        const text = json.candidates[0].content.parts[0].text;
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+        const result = await model.generateContent([
+            SYSTEM_PROMPT,
+            { inlineData: { data: base64Data, mimeType: mimeType } }
+        ]);
         
-        // 🛡️ JSON PARSER (Robust)
+        const text = result.response.text();
+        console.log("Raw AI Output:", text); // Debugging
+
+        // 🛡️ ROBUST JSON EXTRACTOR
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
-        if (jsonStart === -1 || jsonEnd === -1) throw new Error("Invalid JSON response");
+        if (jsonStart === -1 || jsonEnd === -1) {
+            console.error("Invalid JSON format received");
+            return DEFAULT_ANALYSIS;
+        }
 
         const cleanJson = text.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(cleanJson);
 
+        // 🛡️ MERGE WITH DEFAULTS (Ensures no missing keys)
         return {
             overallScore: parsed.overallScore || 0,
             verdict: parsed.verdict || "Analysis incomplete.",
             categories: {
-                visual: parsed.categories?.visual || { score: 0, feedback: "No visual analysis.", fix: "Check video." },
-                audio: parsed.categories?.audio || { score: 0, feedback: "No audio analysis.", fix: "Check audio." },
-                copy: parsed.categories?.copy || { score: 0, feedback: "No copy analysis.", fix: "Check script." }
+                visual: { ...DEFAULT_ANALYSIS.categories.visual, ...parsed.categories?.visual },
+                audio: { ...DEFAULT_ANALYSIS.categories.audio, ...parsed.categories?.audio },
+                copy: { ...DEFAULT_ANALYSIS.categories.copy, ...parsed.categories?.copy }
             },
             checks: Array.isArray(parsed.checks) ? parsed.checks : []
         };
@@ -132,16 +137,17 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // ==========================================
-// 4. DASHBOARD UI COMPONENTS
+// 4. DASHBOARD UI COMPONENTS (Crash-Proof)
 // ==========================================
 
 const ScoreCircle = ({ score }: { score: number }) => {
+    const safeScore = score || 0;
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - ((score || 0) / 10) * circumference;
+    const offset = circumference - (safeScore / 10) * circumference;
     let color = '#ef4444'; 
-    if (score >= 5) color = '#eab308'; 
-    if (score >= 8) color = '#22c55e'; 
+    if (safeScore >= 5) color = '#eab308'; 
+    if (safeScore >= 8) color = '#22c55e'; 
 
     return (
         <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
@@ -149,7 +155,7 @@ const ScoreCircle = ({ score }: { score: number }) => {
                 <circle cx="48" cy="48" r={radius} stroke="#333" strokeWidth="6" fill="transparent" />
                 <circle cx="48" cy="48" r={radius} stroke={color} strokeWidth="6" fill="transparent" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
             </svg>
-            <span className="absolute text-2xl font-bold text-white">{score || 0}/10</span>
+            <span className="absolute text-2xl font-bold text-white">{safeScore}/10</span>
         </div>
     );
 };
@@ -164,7 +170,15 @@ const StatusChip = ({ status }: { status: string }) => {
 };
 
 const AnalysisResult = ({ data }: { data: AnalysisData }) => {
-    if (!data || !data.categories) return <div className="text-red-500">Error displaying results.</div>;
+    // 🛡️ Ultimate Safety Check
+    if (!data || !data.categories) {
+        return (
+            <div className="p-4 bg-red-900/20 border border-red-500 rounded text-center">
+                <h3 className="text-red-500 font-bold">Display Error</h3>
+                <p className="text-gray-400 text-sm">Data structure invalid. Please try again.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in pb-10">
@@ -283,8 +297,7 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
             const base64 = await fileToBase64(file);
 
             setStatus('ANALYZING'); 
-            // Call the WORKER here, passing user email
-            const data = await analyzeVideo(base64, file.type, user.email);
+            const data = await analyzeVideo(base64, file.type);
             
             setResult(data);
             setStatus('SUCCESS');
