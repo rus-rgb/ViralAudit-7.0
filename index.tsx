@@ -54,9 +54,8 @@ const DEFAULT_ANALYSIS: AnalysisData = {
 };
 
 // ==========================================
-// 3. AI SERVICE (Worker Only)
+// 3. AI SERVICE (Optimized for Speed)
 // ==========================================
-// Updated Prompt for Gemini 2.5 Pro Capabilities
 const BRUTAL_SYSTEM_PROMPT = `
 You are a world-class Direct Response Creative Strategist.
 Your job is to audit video ads with extreme scrutiny.
@@ -120,17 +119,20 @@ Structure:
 }
 `;
 
-const analyzeVideo = async (base64Data: string, mimeType: string, email: string): Promise<AnalysisData> => {
+// 🚀 UPDATED: Now accepts raw File object (Binary)
+const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> => {
     try {
+        // 🚀 SPEED BOOST: Send FormData (Binary) instead of JSON (Base64)
+        // This avoids the 33% size overhead of Base64 encoding
+        const formData = new FormData();
+        formData.append('video', file);
+        formData.append('mimeType', file.type);
+        formData.append('licenseKey', email);
+        formData.append('systemPrompt', BRUTAL_SYSTEM_PROMPT);
+
         const response = await fetch(WORKER_URL, {
             method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                base64Data: base64Data,
-                mimeType: mimeType,
-                licenseKey: email, 
-                systemPrompt: BRUTAL_SYSTEM_PROMPT 
-            })
+            body: formData // Browser handles headers automatically for FormData
         });
 
         const json = await response.json();
@@ -166,79 +168,8 @@ const analyzeVideo = async (base64Data: string, mimeType: string, email: string)
     }
 };
 
-const fileToBase64 = (file: File): Promise<string> => {
-    return new Promise((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onloadend = () => {
-            const result = reader.result as string;
-            resolve(result.split(',')[1]);
-        };
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-    });
-};
-
 // ==========================================
-// 4. AUTH CONTEXT & PROVIDER
-// ==========================================
-interface AuthContextType {
-    user: any;
-    showAuthModal: boolean;
-    setShowAuthModal: (v: boolean) => void;
-    showToolModal: boolean;
-    setShowToolModal: (v: boolean) => void;
-    authView: string;
-    setAuthView: (v: string) => void;
-    login: (e: string, p: string) => Promise<any>;
-    signup: (e: string, p: string) => Promise<any>;
-    logout: () => Promise<void>;
-    openTool: () => void;
-    triggerUpgrade: () => void;
-}
-
-const AuthContext = createContext<AuthContextType>({} as AuthContextType);
-const useAuth = () => useContext(AuthContext);
-
-const AuthProvider = ({ children }: any) => {
-    const [user, setUser] = useState<any>(null);
-    const [showAuthModal, setShowAuthModal] = useState(false);
-    const [showToolModal, setShowToolModal] = useState(false);
-    const [authView, setAuthView] = useState('login');
-
-    useEffect(() => {
-        if(supabase) {
-            supabase.auth.getSession().then(({ data }) => setUser(data.session?.user || null));
-            supabase.auth.onAuthStateChange((_, session) => setUser(session?.user || null));
-        }
-    }, []);
-
-    const login = async (e: string, p: string) => supabase ? supabase.auth.signInWithPassword({ email: e, password: p }) : { error: { message: "No Supabase" } };
-    const signup = async (e: string, p: string) => supabase ? supabase.auth.signUp({ email: e, password: p }) : { error: { message: "No Supabase" } };
-    const logout = async () => { if(supabase) await supabase.auth.signOut(); setUser(null); };
-    
-    const openTool = () => setShowToolModal(true);
-    const triggerUpgrade = () => { 
-        setShowToolModal(false); 
-        document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); 
-    };
-
-    return (
-        <AuthContext.Provider value={{ 
-            user, showAuthModal, setShowAuthModal, 
-            showToolModal, setShowToolModal,
-            authView, setAuthView, 
-            login, signup, logout, 
-            openTool, triggerUpgrade 
-        }}>
-            {children}
-            <ViralAuditTool isOpen={showToolModal} onClose={() => setShowToolModal(false)} />
-            <AuthModal />
-        </AuthContext.Provider>
-    );
-};
-
-// ==========================================
-// 5. COMPONENTS
+// 4. DASHBOARD UI COMPONENTS
 // ==========================================
 
 const ScoreCircle = ({ score }: { score: number }) => {
@@ -338,8 +269,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
 // 5. MAIN LOGIC (Auth + Upload + Modal)
 // ==========================================
 
-const ViralAuditTool = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => void }) => {
-    const { user, setShowAuthModal, setAuthView, triggerUpgrade } = useAuth();
+const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const [file, setFile] = useState<File | null>(null);
     const [status, setStatus] = useState<'IDLE' | 'UPLOADING' | 'ANALYZING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [result, setResult] = useState<AnalysisData | null>(null);
@@ -354,8 +284,11 @@ const ViralAuditTool = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
     ];
 
     useEffect(() => { 
-        if(!isOpen) { setFile(null); setResult(null); setStatus('IDLE'); } 
-        else if (user && supabase) { loadUsage(); }
+        if(!isOpen) { 
+            setFile(null); setResult(null); setStatus('IDLE'); 
+        } else if (user && supabase) {
+            loadUsage();
+        }
     }, [isOpen, user]);
 
     useEffect(() => {
@@ -388,10 +321,11 @@ const ViralAuditTool = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
         
         try {
             setStatus('UPLOADING');
-            const base64 = await fileToBase64(file);
-
+            // 🚀 FAST PATH: No base64 conversion here anymore
+            
             setStatus('ANALYZING'); 
-            const data = await analyzeVideo(base64, file.type, user.email);
+            // 🚀 FAST PATH: Send raw file directly to worker
+            const data = await analyzeVideo(file, file.type, user.email);
             
             setResult(data);
             setStatus('SUCCESS');
@@ -496,20 +430,41 @@ const ViralAuditTool = ({ isOpen, onClose }: { isOpen: boolean, onClose: () => v
 };
 
 // ==========================================
-// 6. AuthModal (Fixing Reference Error)
+// 6. SITE COMPONENTS (Landing Page)
 // ==========================================
+
+const AuthContext = createContext<any>(null);
+const AuthProvider = ({ children }: any) => {
+    const [user, setUser] = useState<any>(null);
+    const [showAuthModal, setShowAuthModal] = useState(false);
+    const [showToolModal, setShowToolModal] = useState(false);
+    const [authView, setAuthView] = useState('login');
+
+    useEffect(() => {
+        if(supabase) {
+            supabase.auth.getSession().then(({ data }) => setUser(data.session?.user || null));
+            supabase.auth.onAuthStateChange((_, session) => setUser(session?.user || null));
+        }
+    }, []);
+
+    const login = async (e: string, p: string) => supabase ? supabase.auth.signInWithPassword({ email: e, password: p }) : { error: { message: "No Supabase" } };
+    const signup = async (e: string, p: string) => supabase ? supabase.auth.signUp({ email: e, password: p }) : { error: { message: "No Supabase" } };
+    const logout = async () => supabase?.auth.signOut();
+    const triggerUpgrade = () => { setShowToolModal(false); document.getElementById('pricing')?.scrollIntoView({ behavior: 'smooth' }); };
+
+    return (
+        <AuthContext.Provider value={{ user, showAuthModal, setShowAuthModal, authView, setAuthView, login, signup, logout, openTool: () => setShowToolModal(true), triggerUpgrade }}>
+            {children}
+            <ViralAuditTool isOpen={showToolModal} onClose={() => setShowToolModal(false)} user={user} triggerUpgrade={triggerUpgrade} />
+            <AuthModal />
+        </AuthContext.Provider>
+    );
+};
+
 const AuthModal = () => {
-    // 🛡️ Safe context usage
-    const auth = useAuth();
-    if (!auth) return null;
-    const { showAuthModal, setShowAuthModal, login, signup, authView, setAuthView } = auth;
-    
-    const [email, setE] = useState(""); 
-    const [pass, setP] = useState(""); 
-    const [err, setErr] = useState("");
-
+    const { showAuthModal, setShowAuthModal, login, signup, authView, setAuthView } = useContext(AuthContext);
+    const [email, setE] = useState(""); const [pass, setP] = useState(""); const [err, setErr] = useState("");
     if(!showAuthModal) return null;
-
     return (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4">
             <div className="bg-[#111] border border-[#333] p-8 rounded-2xl w-full max-w-md relative">
@@ -530,17 +485,13 @@ const AuthModal = () => {
     )
 }
 
-// ==========================================
-// 7. LANDING PAGE
-// ==========================================
 const Navbar = () => {
-    const { user, logout, setShowAuthModal, setAuthView } = useAuth();
+    const { user, logout, setShowAuthModal, setAuthView } = useContext(AuthContext);
     return (
         <nav className="fixed w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/10 py-4">
             <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
                 <span className="font-bold text-xl text-white">ViralAudit</span>
                 <div className="flex gap-4">
-                    <div className="text-xs font-mono text-gray-500 bg-[#161616] px-2 py-1 rounded border border-[#333] mr-2">v2.5 • PRO</div>
                     {user ? <button onClick={logout} className="text-sm text-gray-300">Logout</button> : 
                     <><button onClick={() => { setAuthView('login'); setShowAuthModal(true); }} className="text-sm text-gray-300">Login</button>
                     <button onClick={() => { setAuthView('signup'); setShowAuthModal(true); }} className="bg-white text-black px-4 py-2 rounded text-sm font-bold">Get Started</button></>}
@@ -551,7 +502,7 @@ const Navbar = () => {
 }
 
 const Hero = () => {
-    const { openTool } = useAuth();
+    const { openTool } = useContext(AuthContext);
     return (
         <section className="pt-40 pb-20 px-6 text-center">
             <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">Stop Guessing.<br/>Audit Your Ads Instantly.</h1>
@@ -561,33 +512,32 @@ const Hero = () => {
     );
 }
 
-const PricingCard = ({ plan, price, description, features, isPro, delay }: any) => {
-    const { user, setShowAuthModal, setAuthView } = useAuth(); // 🛡️ Ensure hook usage
-    const handleAction = () => { if (user) alert("You are logged in! Redirecting to checkout..."); else { setAuthView('signup'); setShowAuthModal(true); } };
-    return (
-        <motion.div initial={{ opacity: 0, y: 20 }} whileInView={{ opacity: 1, y: 0 }} viewport={{ once: true }} transition={{ delay }} className={`relative p-8 rounded-2xl border flex flex-col h-full ${isPro ? 'bg-[#0f0f0f]/90 backdrop-blur-md border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.05)]' : 'bg-[#0a0a0a]/80 backdrop-blur-sm border-white/10'}`}>
-            {isPro && <div className="absolute top-0 right-0 bg-white text-black text-[10px] font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">RECOMMENDED</div>}
-            <div className="mb-8"><h3 className="text-lg font-bold font-heading mb-2">{plan}</h3><div className="flex items-baseline gap-1 mb-4"><span className="text-4xl font-bold">{price}</span><span className="text-sm text-gray-500">/mo</span></div><p className="text-sm text-gray-400">{description}</p></div>
-            <ul className="space-y-4 mb-8 flex-1">{features.map((feature: any, i: number) => (<li key={i} className={`flex items-center gap-3 text-sm ${feature.included ? 'text-gray-200' : 'text-gray-600'}`}><i className={`fa-solid ${feature.included ? 'fa-check text-emerald-500' : 'fa-xmark text-gray-700'}`}></i>{feature.text}</li>))}</ul>
-            <button onClick={handleAction} className={`block w-full text-center py-4 rounded-xl font-bold text-sm transition-all ${isPro ? 'bg-white text-black hover:bg-gray-200 hover:scale-[1.02]' : 'border border-white/20 text-white hover:bg-white/5'}`}>{isPro ? 'Start Pro Trial' : 'Get Started'}</button>
-        </motion.div>
-    );
-};
-
 const Pricing = () => {
+    const { openTool } = useContext(AuthContext);
     return (
         <section id="pricing" className="py-20 border-t border-white/5">
             <div className="max-w-5xl mx-auto px-6 text-center">
                 <h2 className="text-3xl font-bold text-white mb-10">Simple Pricing</h2>
                 <div className="inline-block p-4 mb-10 rounded-lg bg-[#1a1a1a] border border-[#333]"><span className="text-xs font-bold text-[#00F2EA] uppercase mr-2">Free Plan</span><span className="text-sm text-gray-400">Includes 3 free audits per account.</span></div>
                 <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-                    <PricingCard plan="Starter" price="£29" description="For solo media buyers." delay={0.1} isPro={false} features={[{ text: "50 Video Audits / Month", included: true }, { text: "Deep Think Analysis", included: true }, { text: "Detailed Fix Reports", included: true }, { text: "Viral Script Rewrites", included: false }]} />
-                    <PricingCard plan="Professional" price="£49" description="For agencies and scaling brands." delay={0.2} isPro={true} features={[{ text: "500 Video Audits / Month", included: true }, { text: "Deep Think Analysis", included: true }, { text: "Detailed Fix Reports", included: true }, { text: "Viral Script Rewrites", included: true }]} />
+                    <div className="bg-[#0a0a0a] p-8 rounded-2xl border border-white/10 text-left">
+                        <h3 className="text-xl font-bold text-white">Starter</h3>
+                        <p className="text-4xl font-bold text-white my-4">$29<span className="text-sm text-gray-500">/mo</span></p>
+                        <button onClick={openTool} className="w-full border border-white/20 text-white py-3 rounded-lg mb-6">Get Started</button>
+                        <ul className="text-gray-400 space-y-2 text-sm"><li>✓ 50 Audits/mo</li><li>✓ Basic Analysis</li></ul>
+                    </div>
+                    <div className="bg-[#0f0f0f] p-8 rounded-2xl border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.05)] relative text-left">
+                        <div className="absolute top-0 right-0 bg-white text-black text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>
+                        <h3 className="text-xl font-bold text-white">Pro</h3>
+                        <p className="text-4xl font-bold text-white my-4">$49<span className="text-sm text-gray-500">/mo</span></p>
+                        <button onClick={openTool} className="w-full bg-white text-black py-3 rounded-lg mb-6 font-bold">Start Pro Trial</button>
+                        <ul className="text-gray-400 space-y-2 text-sm"><li>✓ 500 Audits/mo</li><li>✓ Deep Analysis</li><li>✓ Script Rewrites</li></ul>
+                    </div>
                 </div>
             </div>
         </section>
     );
-};
+}
 
 const Features = () => {
     const FeatureCard = ({ icon, title, desc }: any) => (
