@@ -2,7 +2,8 @@ import React, { useState, useEffect, useContext, createContext, useMemo } from "
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAI } from "@google/genai";
+// 🔴 FIX: Using the correct package name here to match package.json
+import { GoogleGenerativeAI } from "@google/generative-ai"; 
 
 // ==========================================
 // 1. CONFIGURATION
@@ -42,11 +43,16 @@ interface AnalysisData {
 }
 
 // ==========================================
-// 3. AI SERVICE (With Robust Parsing)
+// 3. AI SERVICE (The Brain)
 // ==========================================
 const SYSTEM_PROMPT = `
 You are a brutal, data-driven Creative Director. Analyze this video ad.
 Return a VALID JSON object. Do not add markdown blocks.
+
+CRITICAL INSTRUCTIONS FOR LANGUAGE:
+1. **WRITE AT AN 8TH-GRADE READING LEVEL.** 2. Use simple, short sentences. 
+3. No marketing jargon.
+4. Be direct.
 
 Structure:
 {
@@ -75,21 +81,17 @@ const analyzeVideo = async (base64Data: string, mimeType: string): Promise<Analy
         ]);
         
         const text = result.response.text();
-        console.log("Raw AI Response:", text); // Debug log
-
+        
         // 🛡️ ROBUST JSON EXTRACTOR
-        // Finds the first '{' and last '}' to ignore any intro text the AI might add
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
-        if (jsonStart === -1 || jsonEnd === -1) {
-            throw new Error("Invalid JSON response from AI");
-        }
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error("Invalid JSON response");
 
         const cleanJson = text.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(cleanJson);
 
-        // 🛡️ SAFETY DEFAULTS (Prevents Black Screen if fields are missing)
+        // 🛡️ SAFETY DEFAULTS
         return {
             overallScore: parsed.overallScore || 0,
             verdict: parsed.verdict || "Analysis incomplete.",
@@ -120,7 +122,7 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // ==========================================
-// 4. DASHBOARD UI COMPONENTS (With Safety Checks)
+// 4. DASHBOARD UI COMPONENTS
 // ==========================================
 
 const ScoreCircle = ({ score }: { score: number }) => {
@@ -152,7 +154,6 @@ const StatusChip = ({ status }: { status: string }) => {
 };
 
 const AnalysisResult = ({ data }: { data: AnalysisData }) => {
-    // 🛡️ Extra Safety: Ensure data exists before rendering
     if (!data || !data.categories) return <div className="text-red-500">Error displaying results.</div>;
 
     return (
@@ -178,7 +179,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
                             <div className="flex items-center gap-2 font-bold text-lg text-white"><span>{pillar.icon}</span> {pillar.title}</div>
                             <span className={`font-mono font-bold ${(pillar.data?.score || 0) > 70 ? 'text-green-400' : 'text-yellow-400'}`}>{pillar.data?.score || 0}%</span>
                         </div>
-                        <p className="text-sm text-gray-400 mb-4 leading-relaxed flex-grow">{pillar.data?.feedback || "No feedback available."}</p>
+                        <p className="text-sm text-gray-400 mb-4 leading-relaxed flex-grow">{pillar.data?.feedback || "No feedback."}</p>
                         {pillar.data?.fix && (
                             <div className="mt-auto pt-3 border-t border-white/5">
                                 <p className="text-xs text-[#00F2EA] font-bold uppercase mb-1">Fix:</p>
