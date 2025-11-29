@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useContext, createContext, useMemo } from "react";
+import React, { useState, useEffect, useContext, createContext } from "react";
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+// 🔴 Your Worker URL
+const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/"; 
+
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// 2. TYPES & DATA STRUCTURES
+// 2. DATA TYPES
 // ==========================================
 interface AuditCategory {
     score: number;
@@ -41,9 +41,10 @@ interface AnalysisData {
     checks: CheckItem[];
 }
 
+// 🛡️ Safe Default
 const DEFAULT_ANALYSIS: AnalysisData = {
     overallScore: 0,
-    verdict: "Analysis unavailable. Please try again.",
+    verdict: "Analysis failed to load.",
     categories: {
         visual: { score: 0, feedback: "N/A", fix: "" },
         audio: { score: 0, feedback: "N/A", fix: "" },
@@ -53,66 +54,67 @@ const DEFAULT_ANALYSIS: AnalysisData = {
 };
 
 // ==========================================
-// 3. AI SERVICE (THE RUTHLESS STRATEGIST)
+// 3. AI SERVICE (Worker Only)
 // ==========================================
-const SYSTEM_PROMPT = `
-You are a world-class Direct Response Creative Strategist (think David Ogilvy meets a brutal TikTok media buyer). 
-Your job is to audit video ads with extreme scrutiny. You are NOT here to be nice. You are here to increase ROAS.
+// This prompt is sent to the worker to ensure BRUTAL output
+const BRUTAL_SYSTEM_PROMPT = `
+You are a world-class Direct Response Creative Strategist.
+Your job is to audit video ads with extreme scrutiny. You are NOT here to be nice.
 
 CRITICAL INSTRUCTIONS:
 1. **BE BRUTAL:** Do not use fluff. If it sucks, say it sucks and say WHY.
 2. **USE TIMESTAMPS:** You MUST reference specific moments (e.g., "At 0:03, the pacing dies.").
-3. **FOCUS ON METRICS:** Analyze Hook Rate (0-3s), Hold Rate (Body), and Conversion (CTA).
-4. **NO GENERIC ADVICE:** Do not say "make it better." Say "Cut the first 2 seconds" or "Change the font to white."
+3. **NO GENERIC ADVICE:** Do not say "make it better." Say "Cut the first 2 seconds" or "Change the font."
+4. **8th GRADE LEVEL:** Use short, punchy sentences. No marketing jargon.
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object. No markdown.
 
 Structure:
 {
-  "overallScore": number (0-10, be harsh. 7 is a great ad. 9 is viral.),
+  "overallScore": number (0-10, be harsh),
   "verdict": "One distinct, brutal sentence summarizing the creative potential.",
   "categories": {
     "visual": { 
       "score": number (0-100), 
-      "feedback": "Analyze the scroll-stop capability, aesthetic, and pacing. Mention specific shots.", 
-      "fix": "Direct instruction to the editor on what to cut or change." 
+      "feedback": "Analyze scroll-stop and pacing. Mention specific shots.", 
+      "fix": "Direct instruction on what to cut or change." 
     },
     "audio": { 
       "score": number (0-100), 
-      "feedback": "Analyze the voiceover tone, music choice, and sound effects. Is it annoying? Is it boring?", 
-      "fix": "Direct instruction on audio mixing or voiceover direction." 
+      "feedback": "Analyze voiceover tone and music. Is it annoying?", 
+      "fix": "Direct instruction on audio mixing." 
     },
     "copy": { 
       "score": number (0-100), 
-      "feedback": "Analyze the script for pain points, objections, and sales psychology.", 
-      "fix": "Rewrite the main hook or CTA to be punchier." 
+      "feedback": "Analyze the hook and pain points.", 
+      "fix": "Rewrite the main hook to be punchier." 
     }
   },
   "checks": [
     { 
       "label": "The Hook (0-3s)", 
       "status": "PASS/FAIL/WARN", 
-      "details": "Does it stop the scroll? Analyze the first 3 seconds specifically.", 
-      "fix": "How to make the first 3 seconds explosive." 
+      "details": "Does it stop the scroll? Analyze the first 3 seconds.", 
+      "fix": "How to make the intro explosive." 
     },
     { 
       "label": "Pacing & Retention", 
       "status": "PASS/FAIL/WARN", 
-      "details": "Are there cuts every 2-4 seconds? Where does it drag? Reference timestamps.", 
+      "details": "Where does it drag? Reference timestamps.", 
       "fix": "Where to trim the fat." 
     },
     { 
-      "label": "Storytelling & Pain", 
+      "label": "Storytelling", 
       "status": "PASS/FAIL/WARN", 
-      "details": "Does it agitate a problem? Does it present a solution clearly?", 
-      "fix": "How to sharpen the narrative arc." 
+      "details": "Does it agitate a problem and solve it?", 
+      "fix": "Sharpen the narrative arc." 
     },
     { 
-      "label": "The Offer / CTA", 
+      "label": "Call to Action", 
       "status": "PASS/FAIL/WARN", 
-      "details": "Is the next step clear? Is the offer compelling?", 
-      "fix": "A stronger, direct-response CTA." 
+      "details": "Is the offer clear?", 
+      "fix": "A stronger, direct command." 
     }
   ]
 }
@@ -120,27 +122,34 @@ Structure:
 
 const analyzeVideo = async (base64Data: string, mimeType: string, email: string): Promise<AnalysisData> => {
     try {
-        // Using Flash-8B for speed, but with the new detailed prompt
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-        const result = await model.generateContent([
-            SYSTEM_PROMPT,
-            { inlineData: { data: base64Data, mimeType: mimeType } }
-        ]);
-        
-        const text = result.response.text();
-        console.log("Raw AI Output:", text);
+        const response = await fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                base64Data: base64Data,
+                mimeType: mimeType,
+                licenseKey: email, 
+                systemPrompt: BRUTAL_SYSTEM_PROMPT 
+            })
+        });
 
+        const json = await response.json();
+
+        if (json.error) throw new Error(json.error.message || "Worker Error");
+        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned");
+
+        const text = json.candidates[0].content.parts[0].text;
+        
+        // Robust JSON Extraction
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
-        if (jsonStart === -1 || jsonEnd === -1) {
-            console.error("Invalid JSON format received");
-            return DEFAULT_ANALYSIS;
-        }
+        if (jsonStart === -1 || jsonEnd === -1) throw new Error("Invalid JSON from AI");
 
         const cleanJson = text.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(cleanJson);
 
+        // Merge with default to prevent crashes if fields are missing
         return {
             overallScore: parsed.overallScore || 0,
             verdict: parsed.verdict || "Analysis incomplete.",
@@ -153,8 +162,8 @@ const analyzeVideo = async (base64Data: string, mimeType: string, email: string)
         };
 
     } catch (error) {
-        console.error("Analysis Error:", error);
-        throw new Error("Failed to analyze video.");
+        console.error("Analysis Failed:", error);
+        throw error;
     }
 };
 
@@ -280,14 +289,15 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const FREE_LIMIT = 3;
 
     const LOADING_MESSAGES = [
-        "Analyzing hook retention (0-3s)...",
+        "Analyzing hook retention...",
+        "Judging your font choices...",
         "Calculating viral coefficient...",
         "Scanning for boring intros...",
-        "Reviewing pacing and cuts...",
+        "Reviewing color grading...",
         "Checking for 'umms' and 'ahhs'...",
         "Comparing to top 1% of ads...",
         "Preparing brutal feedback...",
-        "Evaluating call to action...",
+        "Checking pacing against TikTok brain...",
         "Almost done, writing the roast..."
     ];
 
@@ -313,7 +323,8 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
 
     const loadUsage = async () => {
         if(!user || !supabase) return;
-        const { data } = await supabase.from('profiles').select('audit_count').eq('id', user.id).single();
+        // 🛡️ Fix 406 Error: Use maybeSingle instead of single
+        const { data } = await supabase.from('profiles').select('audit_count').eq('id', user.id).maybeSingle();
         if(data) setAuditCount(data.audit_count);
     };
 
