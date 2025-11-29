@@ -2,18 +2,18 @@ import React, { useState, useEffect, useContext, createContext, useMemo } from "
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-// 🔴 FIX: Using the correct package name here to match package.json
-import { GoogleGenerativeAI } from "@google/generative-ai"; 
 
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
+// 🔒 Your Worker URL (Backend)
+const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/"; 
+
+// Supabase (Auth)
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
-const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
 // 2. TYPES & DATA STRUCTURES
@@ -43,7 +43,7 @@ interface AnalysisData {
 }
 
 // ==========================================
-// 3. AI SERVICE (The Brain)
+// 3. AI SERVICE (Via Worker)
 // ==========================================
 const SYSTEM_PROMPT = `
 You are a brutal, data-driven Creative Director. Analyze this video ad.
@@ -72,17 +72,28 @@ Structure:
 }
 `;
 
-const analyzeVideo = async (base64Data: string, mimeType: string): Promise<AnalysisData> => {
+const analyzeVideo = async (base64Data: string, mimeType: string, email: string): Promise<AnalysisData> => {
     try {
-        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
-        const result = await model.generateContent([
-            SYSTEM_PROMPT,
-            { inlineData: { data: base64Data, mimeType: mimeType } }
-        ]);
+        // 🔒 Sending data to your Cloudflare Worker
+        const response = await fetch(WORKER_URL, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+                base64Data: base64Data,
+                mimeType: mimeType,
+                licenseKey: email, // Tracks user usage in worker logs
+                systemPrompt: SYSTEM_PROMPT // Sends the new 8th-grade rules
+            })
+        });
+
+        const json = await response.json();
+
+        if (json.error) throw new Error(json.error.message || "Worker Error");
+        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned");
+
+        const text = json.candidates[0].content.parts[0].text;
         
-        const text = result.response.text();
-        
-        // 🛡️ ROBUST JSON EXTRACTOR
+        // 🛡️ JSON PARSER (Robust)
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
@@ -91,7 +102,6 @@ const analyzeVideo = async (base64Data: string, mimeType: string): Promise<Analy
         const cleanJson = text.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(cleanJson);
 
-        // 🛡️ SAFETY DEFAULTS
         return {
             overallScore: parsed.overallScore || 0,
             verdict: parsed.verdict || "Analysis incomplete.",
@@ -273,7 +283,8 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
             const base64 = await fileToBase64(file);
 
             setStatus('ANALYZING'); 
-            const data = await analyzeVideo(base64, file.type);
+            // Call the WORKER here, passing user email
+            const data = await analyzeVideo(base64, file.type, user.email);
             
             setResult(data);
             setStatus('SUCCESS');
