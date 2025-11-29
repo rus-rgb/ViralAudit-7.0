@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useContext, createContext } from "react";
+import React, { useState, useEffect, useContext, createContext, useRef, useCallback } from "react";
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
@@ -6,7 +6,6 @@ import { createClient } from "@supabase/supabase-js";
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-// 🔴 Your Worker URL
 const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/"; 
 
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
@@ -41,7 +40,8 @@ interface AnalysisData {
     checks: CheckItem[];
 }
 
-// 🛡️ Safe Default
+type UploadStatus = 'IDLE' | 'COMPRESSING' | 'UPLOADING' | 'ANALYZING' | 'SUCCESS' | 'ERROR';
+
 const DEFAULT_ANALYSIS: AnalysisData = {
     overallScore: 0,
     verdict: "Analysis failed to load.",
@@ -54,7 +54,104 @@ const DEFAULT_ANALYSIS: AnalysisData = {
 };
 
 // ==========================================
-// 3. AI SERVICE (Optimized for Speed)
+// 3. VIDEO COMPRESSION UTILITY
+// ==========================================
+const compressVideo = async (
+    file: File, 
+    onProgress: (progress: number) => void,
+    targetSizeMB: number = 15
+): Promise<File> => {
+    // If file is already small enough, skip compression
+    if (file.size <= targetSizeMB * 1024 * 1024) {
+        console.log("📦 File already optimized, skipping compression");
+        onProgress(100);
+        return file;
+    }
+
+    console.log(`🗜️ Compressing video from ${(file.size / 1024 / 1024).toFixed(1)}MB...`);
+    
+    return new Promise((resolve, reject) => {
+        const video = document.createElement('video');
+        video.muted = true;
+        video.playsInline = true;
+        
+        const canvas = document.createElement('canvas');
+        const ctx = canvas.getContext('2d');
+        
+        video.onloadedmetadata = async () => {
+            // Calculate target dimensions (max 720p for speed)
+            const maxHeight = 720;
+            const scale = video.videoHeight > maxHeight ? maxHeight / video.videoHeight : 1;
+            canvas.width = Math.floor(video.videoWidth * scale);
+            canvas.height = Math.floor(video.videoHeight * scale);
+            
+            const duration = video.duration;
+            const fps = 24; // Lower FPS for smaller file
+            const totalFrames = Math.floor(duration * fps);
+            
+            // Use MediaRecorder for compression
+            const stream = canvas.captureStream(fps);
+            const mediaRecorder = new MediaRecorder(stream, {
+                mimeType: 'video/webm;codecs=vp8',
+                videoBitsPerSecond: 1000000 // 1 Mbps
+            });
+            
+            const chunks: Blob[] = [];
+            mediaRecorder.ondataavailable = (e) => {
+                if (e.data.size > 0) chunks.push(e.data);
+            };
+            
+            mediaRecorder.onstop = () => {
+                const blob = new Blob(chunks, { type: 'video/webm' });
+                const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, '.webm'), {
+                    type: 'video/webm'
+                });
+                console.log(`✅ Compressed to ${(compressedFile.size / 1024 / 1024).toFixed(1)}MB`);
+                onProgress(100);
+                resolve(compressedFile);
+            };
+            
+            mediaRecorder.onerror = () => reject(new Error('Compression failed'));
+            
+            mediaRecorder.start();
+            
+            // Process frames
+            let currentFrame = 0;
+            const frameInterval = 1 / fps;
+            
+            const processFrame = () => {
+                if (currentFrame >= totalFrames) {
+                    mediaRecorder.stop();
+                    return;
+                }
+                
+                video.currentTime = currentFrame * frameInterval;
+            };
+            
+            video.onseeked = () => {
+                if (ctx) {
+                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                }
+                currentFrame++;
+                onProgress(Math.floor((currentFrame / totalFrames) * 90)); // 90% for compression
+                
+                if (currentFrame < totalFrames) {
+                    requestAnimationFrame(processFrame);
+                } else {
+                    setTimeout(() => mediaRecorder.stop(), 100);
+                }
+            };
+            
+            processFrame();
+        };
+        
+        video.onerror = () => reject(new Error('Failed to load video'));
+        video.src = URL.createObjectURL(file);
+    });
+};
+
+// ==========================================
+// 4. AI SERVICE WITH PROGRESS
 // ==========================================
 const BRUTAL_SYSTEM_PROMPT = `
 You are a world-class Direct Response Creative Strategist.
@@ -91,39 +188,20 @@ Structure:
     }
   },
   "checks": [
-    { 
-      "label": "The Hook (0-3s)", 
-      "status": "PASS/FAIL/WARN", 
-      "details": "Does it stop the scroll? Analyze the first 3 seconds.", 
-      "fix": "How to make the intro explosive." 
-    },
-    { 
-      "label": "Pacing & Retention", 
-      "status": "PASS/FAIL/WARN", 
-      "details": "Where does it drag? Reference timestamps.", 
-      "fix": "Where to trim the fat." 
-    },
-    { 
-      "label": "Storytelling", 
-      "status": "PASS/FAIL/WARN", 
-      "details": "Does it agitate a problem and solve it?", 
-      "fix": "Sharpen the narrative arc." 
-    },
-    { 
-      "label": "Call to Action", 
-      "status": "PASS/FAIL/WARN", 
-      "details": "Is the offer clear?", 
-      "fix": "A stronger, direct command." 
-    }
+    { "label": "The Hook (0-3s)", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." },
+    { "label": "Pacing & Retention", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." },
+    { "label": "Storytelling", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." },
+    { "label": "Call to Action", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." }
   ]
 }
 `;
 
-// 🚀 UPDATED: Now accepts raw File object (Binary)
-const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> => {
+const analyzeVideo = async (
+    file: File, 
+    email: string,
+    onUploadProgress: (progress: number) => void
+): Promise<AnalysisData> => {
     try {
-        // 🚀 SPEED BOOST: Send FormData (Binary) instead of JSON (Base64)
-        // This avoids the 33% size overhead of Base64 encoding
         const formData = new FormData();
         formData.append('video', file);
         formData.append('mimeType', file.type);
@@ -136,15 +214,36 @@ const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> =>
             mimeType: file.type 
         });
 
-        const response = await fetch(WORKER_URL, {
-            method: "POST",
-            body: formData // Browser handles headers automatically for FormData
+        // Use XMLHttpRequest for upload progress
+        const response = await new Promise<Response>((resolve, reject) => {
+            const xhr = new XMLHttpRequest();
+            
+            xhr.upload.onprogress = (e) => {
+                if (e.lengthComputable) {
+                    const percent = Math.round((e.loaded / e.total) * 100);
+                    onUploadProgress(percent);
+                }
+            };
+            
+            xhr.onload = () => {
+                const response = new Response(xhr.response, {
+                    status: xhr.status,
+                    statusText: xhr.statusText
+                });
+                resolve(response);
+            };
+            
+            xhr.onerror = () => reject(new Error('Network error'));
+            xhr.ontimeout = () => reject(new Error('Request timeout'));
+            
+            xhr.open('POST', WORKER_URL);
+            xhr.timeout = 180000; // 3 minute timeout
+            xhr.send(formData);
         });
 
-        // Check if response is OK before parsing
         if (!response.ok) {
             const errorText = await response.text();
-            console.error("❌ Worker Error Response:", response.status, errorText);
+            console.error("❌ Worker Error:", response.status, errorText);
             throw new Error(`Worker returned ${response.status}: ${errorText}`);
         }
 
@@ -156,7 +255,6 @@ const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> =>
 
         const text = json.candidates[0].content.parts[0].text;
         
-        // Robust JSON Extraction
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
@@ -183,8 +281,82 @@ const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> =>
 };
 
 // ==========================================
-// 4. DASHBOARD UI COMPONENTS
+// 5. UI COMPONENTS
 // ==========================================
+
+const ProgressBar = ({ progress, label }: { progress: number; label: string }) => (
+    <div className="w-full max-w-md mx-auto">
+        <div className="flex justify-between text-sm mb-2">
+            <span className="text-gray-400">{label}</span>
+            <span className="text-[#00F2EA] font-mono">{progress}%</span>
+        </div>
+        <div className="h-2 bg-[#222] rounded-full overflow-hidden">
+            <motion.div 
+                className="h-full bg-gradient-to-r from-[#00F2EA] to-[#00F2EA]/70"
+                initial={{ width: 0 }}
+                animate={{ width: `${progress}%` }}
+                transition={{ duration: 0.3 }}
+            />
+        </div>
+    </div>
+);
+
+const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) => {
+    const [thumbnail, setThumbnail] = useState<string | null>(null);
+    const [duration, setDuration] = useState<string>('');
+
+    useEffect(() => {
+        const video = document.createElement('video');
+        video.preload = 'metadata';
+        video.onloadedmetadata = () => {
+            video.currentTime = 1; // Seek to 1 second for thumbnail
+            const mins = Math.floor(video.duration / 60);
+            const secs = Math.floor(video.duration % 60);
+            setDuration(`${mins}:${secs.toString().padStart(2, '0')}`);
+        };
+        video.onseeked = () => {
+            const canvas = document.createElement('canvas');
+            canvas.width = video.videoWidth;
+            canvas.height = video.videoHeight;
+            canvas.getContext('2d')?.drawImage(video, 0, 0);
+            setThumbnail(canvas.toDataURL());
+        };
+        video.src = URL.createObjectURL(file);
+        
+        return () => URL.revokeObjectURL(video.src);
+    }, [file]);
+
+    return (
+        <div className="relative bg-[#1a1a1a] rounded-xl p-4 border border-[#333]">
+            <div className="flex items-center gap-4">
+                <div className="relative w-24 h-16 bg-black rounded-lg overflow-hidden flex-shrink-0">
+                    {thumbnail ? (
+                        <img src={thumbnail} alt="Preview" className="w-full h-full object-cover" />
+                    ) : (
+                        <div className="w-full h-full flex items-center justify-center">
+                            <i className="fa-solid fa-video text-gray-600"></i>
+                        </div>
+                    )}
+                    {duration && (
+                        <span className="absolute bottom-1 right-1 bg-black/80 text-white text-[10px] px-1 rounded">
+                            {duration}
+                        </span>
+                    )}
+                </div>
+                <div className="flex-1 min-w-0">
+                    <p className="text-white font-medium truncate">{file.name}</p>
+                    <p className="text-gray-500 text-sm">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+                </div>
+                <button 
+                    onClick={onRemove}
+                    className="p-2 text-gray-500 hover:text-red-500 transition-colors"
+                >
+                    <i className="fa-solid fa-trash"></i>
+                </button>
+            </div>
+        </div>
+    );
+};
 
 const ScoreCircle = ({ score }: { score: number }) => {
     const safeScore = score || 0;
@@ -199,7 +371,14 @@ const ScoreCircle = ({ score }: { score: number }) => {
         <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
             <svg className="w-full h-full transform -rotate-90">
                 <circle cx="48" cy="48" r={radius} stroke="#333" strokeWidth="6" fill="transparent" />
-                <circle cx="48" cy="48" r={radius} stroke={color} strokeWidth="6" fill="transparent" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
+                <motion.circle 
+                    cx="48" cy="48" r={radius} stroke={color} strokeWidth="6" fill="transparent" 
+                    strokeDasharray={circumference} 
+                    initial={{ strokeDashoffset: circumference }}
+                    animate={{ strokeDashoffset: offset }}
+                    transition={{ duration: 1, ease: "easeOut" }}
+                    strokeLinecap="round" 
+                />
             </svg>
             <span className="absolute text-2xl font-bold text-white">{safeScore}/10</span>
         </div>
@@ -228,25 +407,39 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
     return (
         <div className="space-y-8 animate-in fade-in pb-10">
             {/* Verdict */}
-            <div className="flex flex-col md:flex-row gap-6 items-center bg-[#1a1a1a] p-8 rounded-2xl border border-white/10 shadow-lg">
+            <motion.div 
+                initial={{ opacity: 0, y: 20 }} 
+                animate={{ opacity: 1, y: 0 }}
+                className="flex flex-col md:flex-row gap-6 items-center bg-[#1a1a1a] p-8 rounded-2xl border border-white/10 shadow-lg"
+            >
                 <ScoreCircle score={data.overallScore} />
                 <div>
                     <h3 className="text-xs font-bold text-gray-400 uppercase tracking-widest mb-2">Creative Director's Verdict</h3>
                     <p className="text-xl md:text-2xl font-bold italic text-white leading-relaxed">"{data.verdict}"</p>
                 </div>
-            </div>
+            </motion.div>
 
             {/* Pillars */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
-                    { title: 'Visuals', icon: '👁️', data: data.categories.visual },
-                    { title: 'Audio', icon: '🔊', data: data.categories.audio },
-                    { title: 'Copy', icon: '✒️', data: data.categories.copy }
-                ].map((pillar) => (
-                    <div key={pillar.title} className="bg-[#1a1a1a] p-6 rounded-xl border border-white/10 flex flex-col h-full">
+                    { title: 'Visuals', icon: 'fa-eye', data: data.categories.visual },
+                    { title: 'Audio', icon: 'fa-volume-high', data: data.categories.audio },
+                    { title: 'Copy', icon: 'fa-pen-nib', data: data.categories.copy }
+                ].map((pillar, idx) => (
+                    <motion.div 
+                        key={pillar.title} 
+                        initial={{ opacity: 0, y: 20 }} 
+                        animate={{ opacity: 1, y: 0 }}
+                        transition={{ delay: idx * 0.1 }}
+                        className="bg-[#1a1a1a] p-6 rounded-xl border border-white/10 flex flex-col h-full"
+                    >
                         <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
-                            <div className="flex items-center gap-2 font-bold text-lg text-white"><span>{pillar.icon}</span> {pillar.title}</div>
-                            <span className={`font-mono font-bold ${(pillar.data?.score || 0) > 70 ? 'text-green-400' : 'text-yellow-400'}`}>{pillar.data?.score || 0}%</span>
+                            <div className="flex items-center gap-2 font-bold text-lg text-white">
+                                <i className={`fa-solid ${pillar.icon} text-gray-400`}></i> {pillar.title}
+                            </div>
+                            <span className={`font-mono font-bold ${(pillar.data?.score || 0) > 70 ? 'text-green-400' : 'text-yellow-400'}`}>
+                                {pillar.data?.score || 0}%
+                            </span>
                         </div>
                         <p className="text-sm text-gray-400 mb-4 leading-relaxed flex-grow">{pillar.data?.feedback || "No feedback."}</p>
                         {pillar.data?.fix && (
@@ -255,23 +448,31 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
                                 <p className="text-sm text-white italic">{pillar.data.fix}</p>
                             </div>
                         )}
-                    </div>
+                    </motion.div>
                 ))}
             </div>
 
             {/* Checks */}
             <div>
-                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">Diagnostic Checks</h3>
+                <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">
+                    <i className="fa-solid fa-list-check text-[#00F2EA]"></i> Diagnostic Checks
+                </h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     {(data.checks || []).map((check, idx) => (
-                        <div key={idx} className="bg-[#1a1a1a] p-5 rounded-xl border border-white/10">
+                        <motion.div 
+                            key={idx} 
+                            initial={{ opacity: 0, x: -20 }} 
+                            animate={{ opacity: 1, x: 0 }}
+                            transition={{ delay: idx * 0.05 }}
+                            className="bg-[#1a1a1a] p-5 rounded-xl border border-white/10"
+                        >
                             <div className="flex justify-between items-center mb-3">
                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{check.label}</span>
                                 <StatusChip status={check.status} />
                             </div>
                             <p className="text-sm text-white mb-2">{check.details}</p>
                             {check.fix && <p className="text-xs text-[#00F2EA] mt-2 pt-2 border-t border-white/5">Fix: {check.fix}</p>}
-                        </div>
+                        </motion.div>
                     ))}
                 </div>
             </div>
@@ -280,79 +481,119 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
 };
 
 // ==========================================
-// 5. MAIN LOGIC (Auth + Upload + Modal)
+// 6. MAIN TOOL COMPONENT
 // ==========================================
 
 const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const { setShowAuthModal, setAuthView } = useContext(AuthContext);
     const [file, setFile] = useState<File | null>(null);
-    const [status, setStatus] = useState<'IDLE' | 'UPLOADING' | 'ANALYZING' | 'SUCCESS' | 'ERROR'>('IDLE');
+    const [processedFile, setProcessedFile] = useState<File | null>(null);
+    const [status, setStatus] = useState<UploadStatus>('IDLE');
     const [result, setResult] = useState<AnalysisData | null>(null);
     const [auditCount, setAuditCount] = useState(0);
-    const [loadingMsg, setLoadingMsg] = useState("Initializing...");
+    const [progress, setProgress] = useState(0);
+    const [errorMessage, setErrorMessage] = useState<string>('');
     const FREE_LIMIT = 3;
 
-    const LOADING_MESSAGES = [
-        "Analyzing hook retention...", "Judging your font choices...", "Calculating viral coefficient...",
-        "Scanning for boring intros...", "Reviewing color grading...", "Checking for 'umms' and 'ahhs'...",
-        "Comparing to top 1% of ads...", "Preparing brutal feedback...", "Checking pacing...", "Writing the roast..."
-    ];
+    const STAGE_LABELS: Record<UploadStatus, string> = {
+        'IDLE': '',
+        'COMPRESSING': 'Optimizing video...',
+        'UPLOADING': 'Uploading to server...',
+        'ANALYZING': 'AI analyzing your ad...',
+        'SUCCESS': 'Complete!',
+        'ERROR': 'Error'
+    };
 
     useEffect(() => { 
         if(!isOpen) { 
-            setFile(null); setResult(null); setStatus('IDLE'); 
+            setFile(null); 
+            setProcessedFile(null);
+            setResult(null); 
+            setStatus('IDLE'); 
+            setProgress(0);
+            setErrorMessage('');
         } else if (user && supabase) {
             loadUsage();
         }
     }, [isOpen, user]);
 
-    useEffect(() => {
-        let interval: any;
-        if (status === 'ANALYZING') {
-            let i = 0; setLoadingMsg(LOADING_MESSAGES[0]);
-            interval = setInterval(() => {
-                i = (i + 1) % LOADING_MESSAGES.length;
-                setLoadingMsg(LOADING_MESSAGES[i]);
-            }, 2500);
-        }
-        return () => clearInterval(interval);
-    }, [status]);
-
     const loadUsage = async () => {
         if(!user || !supabase) return;
-        // 🛡️ Fix 406 Error: use maybeSingle instead of single
         const { data } = await supabase.from('profiles').select('audit_count').eq('id', user.id).maybeSingle();
         if(data) setAuditCount(data.audit_count);
     };
 
-    const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-        if (e.target.files && e.target.files[0]) { setFile(e.target.files[0]); }
+    const reset = () => { 
+        setFile(null); 
+        setProcessedFile(null);
+        setStatus('IDLE'); 
+        setResult(null); 
+        setProgress(0);
+        setErrorMessage('');
     };
-
-    const reset = () => { setFile(null); setStatus('IDLE'); setResult(null); };
 
     const runAnalysis = async () => {
         if (!file || !user || auditCount >= FREE_LIMIT) return;
         
-        // Validate file before upload
+        // Validation
         const MAX_SIZE_MB = 100;
         if (file.size > MAX_SIZE_MB * 1024 * 1024) {
-            alert(`File too large. Maximum size is ${MAX_SIZE_MB}MB.`);
+            setErrorMessage(`File too large. Maximum size is ${MAX_SIZE_MB}MB.`);
+            setStatus('ERROR');
             return;
         }
         
         if (!file.type.startsWith('video/')) {
-            alert('Please upload a valid video file.');
+            setErrorMessage('Please upload a valid video file.');
+            setStatus('ERROR');
             return;
         }
         
         try {
-            setStatus('UPLOADING');
-            // 🚀 FAST PATH: No base64 conversion here anymore
+            // Stage 1: Compress (if needed)
+            setStatus('COMPRESSING');
+            setProgress(0);
             
-            setStatus('ANALYZING'); 
-            // 🚀 FAST PATH: Send raw file directly to worker
-            const data = await analyzeVideo(file, user.email);
+            let fileToUpload = file;
+            
+            // Only compress if file is large
+            if (file.size > 15 * 1024 * 1024) {
+                try {
+                    fileToUpload = await compressVideo(file, (p) => setProgress(p));
+                    setProcessedFile(fileToUpload);
+                } catch (e) {
+                    console.warn("Compression failed, using original file:", e);
+                    fileToUpload = file;
+                }
+            }
+            setProgress(100);
+
+            // Stage 2: Upload
+            setStatus('UPLOADING');
+            setProgress(0);
+            
+            // Stage 3: Analyze (progress continues from upload)
+            const analysisPromise = analyzeVideo(fileToUpload, user.email, (p) => {
+                setProgress(p);
+                if (p === 100) {
+                    setStatus('ANALYZING');
+                    setProgress(0);
+                }
+            });
+
+            // Simulate analysis progress while waiting
+            setStatus('ANALYZING');
+            let analysisProgress = 0;
+            const progressInterval = setInterval(() => {
+                analysisProgress += Math.random() * 15;
+                if (analysisProgress > 90) analysisProgress = 90;
+                setProgress(Math.floor(analysisProgress));
+            }, 1000);
+
+            const data = await analysisPromise;
+            
+            clearInterval(progressInterval);
+            setProgress(100);
             
             setResult(data);
             setStatus('SUCCESS');
@@ -361,8 +602,9 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
             setAuditCount(newCount);
             if(supabase) await supabase.from('profiles').update({ audit_count: newCount }).eq('id', user.id);
 
-        } catch (e) {
+        } catch (e: any) {
             console.error("FULL ERROR:", e);
+            setErrorMessage(e.message || 'Analysis failed. Please try again.');
             setStatus('ERROR');
         }
     };
@@ -376,73 +618,147 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
                     <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} onClick={onClose} className="fixed inset-0 bg-black/80 backdrop-blur-md z-[150]" />
                     <motion.div initial={{ opacity: 0, scale: 0.95 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.95 }} className="fixed inset-0 z-[151] flex items-center justify-center p-4 pointer-events-none">
                         <div className="bg-[#111] border border-[#333] w-full max-w-4xl max-h-[90vh] rounded-2xl shadow-2xl overflow-hidden flex flex-col pointer-events-auto">
+                            {/* Header */}
                             <div className="p-5 border-b border-[#222] flex justify-between items-center bg-[#161616]">
-                                <h2 className="text-xl font-bold flex items-center gap-2"><span className="text-[#00F2EA]">ViralAudit AI</span></h2>
-                                <button onClick={onClose} className="text-gray-500 hover:text-white"><i className="fa-solid fa-xmark text-xl"></i></button>
+                                <h2 className="text-xl font-bold flex items-center gap-2">
+                                    <span className="text-[#00F2EA]">ViralAudit</span>
+                                    <span className="text-white">AI</span>
+                                    {status !== 'IDLE' && status !== 'SUCCESS' && status !== 'ERROR' && (
+                                        <span className="ml-2 px-2 py-0.5 bg-[#00F2EA]/10 text-[#00F2EA] text-xs rounded-full">
+                                            {STAGE_LABELS[status]}
+                                        </span>
+                                    )}
+                                </h2>
+                                <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+                                    <i className="fa-solid fa-xmark text-xl"></i>
+                                </button>
                             </div>
+                            
+                            {/* Content */}
                             <div className="p-6 overflow-y-auto flex-1 custom-scrollbar relative min-h-[400px]">
                                 {!user ? (
                                     <div className="text-center py-20">
+                                        <div className="w-16 h-16 bg-[#1a1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
+                                            <i className="fa-solid fa-lock text-2xl text-gray-500"></i>
+                                        </div>
                                         <h3 className="text-xl font-bold text-white mb-2">Login Required</h3>
-                                        <button onClick={() => { onClose(); setShowAuthModal(true); setAuthView('login'); }} className="bg-white text-black font-bold px-6 py-3 rounded-lg hover:bg-gray-200 mt-4">Log In / Sign Up</button>
+                                        <p className="text-gray-500 mb-6">Create a free account to analyze your video ads</p>
+                                        <button onClick={() => { onClose(); setShowAuthModal(true); setAuthView('login'); }} className="bg-white text-black font-bold px-6 py-3 rounded-lg hover:bg-gray-200 transition-colors">
+                                            Log In / Sign Up
+                                        </button>
                                     </div>
                                 ) : (
                                     <>
+                                        {/* IDLE State */}
                                         {status === 'IDLE' && (
                                             <>
-                                                <div className="mb-6 flex justify-between bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
-                                                    <span className="text-sm text-gray-400">Free Audits: {remaining} left</span>
-                                                    {remaining === 0 && <button onClick={triggerUpgrade} className="text-xs bg-[#FF0050] text-white px-3 py-1 rounded font-bold">UPGRADE</button>}
+                                                <div className="mb-6 flex justify-between items-center bg-[#1a1a1a] p-3 rounded-lg border border-[#333]">
+                                                    <span className="text-sm text-gray-400">
+                                                        <i className="fa-solid fa-bolt text-[#00F2EA] mr-2"></i>
+                                                        Free Audits: <span className="text-white font-bold">{remaining}</span> remaining
+                                                    </span>
+                                                    {remaining === 0 && (
+                                                        <button onClick={triggerUpgrade} className="text-xs bg-gradient-to-r from-[#FF0050] to-[#FF0080] text-white px-3 py-1 rounded font-bold hover:opacity-90 transition-opacity">
+                                                            UPGRADE
+                                                        </button>
+                                                    )}
                                                 </div>
+                                                
                                                 {remaining > 0 ? (
-                                                    <div className="text-center py-10">
-                                                        <div className="border-2 border-dashed border-[#333] bg-[#1a1a1a] rounded-xl p-12 cursor-pointer hover:border-[#00F2EA]" onClick={() => document.getElementById('vid-up')?.click()}>
-                                                            <input id="vid-up" type="file" hidden accept="video/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
-                                                            <i className="fa-solid fa-cloud-arrow-up text-5xl text-gray-500 mb-4"></i>
-                                                            <h4 className="text-white text-xl">{file ? file.name : "Upload Video Ad"}</h4>
-                                                        </div>
-                                                        <button onClick={runAnalysis} disabled={!file} className="w-full mt-6 bg-[#00F2EA] text-black font-bold py-4 rounded-xl disabled:opacity-50">Run Deep Audit</button>
+                                                    <div className="space-y-6">
+                                                        {!file ? (
+                                                            <div 
+                                                                className="border-2 border-dashed border-[#333] bg-[#1a1a1a] rounded-xl p-12 cursor-pointer hover:border-[#00F2EA] hover:bg-[#1a1a1a]/80 transition-all text-center"
+                                                                onClick={() => document.getElementById('vid-up')?.click()}
+                                                            >
+                                                                <input id="vid-up" type="file" hidden accept="video/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+                                                                <div className="w-16 h-16 bg-[#222] rounded-full flex items-center justify-center mx-auto mb-4">
+                                                                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-[#00F2EA]"></i>
+                                                                </div>
+                                                                <h4 className="text-white text-xl font-bold mb-2">Upload Video Ad</h4>
+                                                                <p className="text-gray-500 text-sm">MP4, MOV, WebM • Max 100MB</p>
+                                                            </div>
+                                                        ) : (
+                                                            <VideoPreview file={file} onRemove={() => setFile(null)} />
+                                                        )}
+                                                        
+                                                        <button 
+                                                            onClick={runAnalysis} 
+                                                            disabled={!file} 
+                                                            className="w-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black font-bold py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                                                        >
+                                                            <i className="fa-solid fa-wand-magic-sparkles"></i>
+                                                            Run Deep Audit
+                                                        </button>
                                                     </div>
                                                 ) : (
-                                                    <div className="text-center py-20"><h3 className="text-white font-bold">Limit Reached</h3><button onClick={triggerUpgrade} className="mt-4 bg-[#FF0050] text-white px-6 py-3 rounded-lg font-bold">View Plans</button></div>
+                                                    <div className="text-center py-20">
+                                                        <div className="w-16 h-16 bg-[#1a1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
+                                                            <i className="fa-solid fa-ban text-2xl text-red-500"></i>
+                                                        </div>
+                                                        <h3 className="text-white font-bold text-xl mb-2">Free Limit Reached</h3>
+                                                        <p className="text-gray-500 mb-6">Upgrade to continue analyzing your ads</p>
+                                                        <button onClick={triggerUpgrade} className="bg-gradient-to-r from-[#FF0050] to-[#FF0080] text-white px-8 py-3 rounded-lg font-bold hover:opacity-90 transition-opacity">
+                                                            View Plans
+                                                        </button>
+                                                    </div>
                                                 )}
                                             </>
                                         )}
 
-                                        {status === 'UPLOADING' && (
-                                            <div className="flex flex-col items-center justify-center py-24">
-                                                <div className="w-16 h-16 border-4 border-[#333] border-t-[#00F2EA] rounded-full animate-spin mb-6"></div>
-                                                <h2 className="text-2xl font-bold text-white animate-pulse">Uploading Video...</h2>
-                                            </div>
-                                        )}
-
-                                        {status === 'ANALYZING' && (
-                                            <div className="flex flex-col items-center justify-center py-24 text-center">
-                                                <div className="relative w-20 h-20 mb-8">
+                                        {/* Processing States */}
+                                        {(status === 'COMPRESSING' || status === 'UPLOADING' || status === 'ANALYZING') && (
+                                            <div className="flex flex-col items-center justify-center py-16 text-center">
+                                                <div className="relative w-24 h-24 mb-8">
                                                     <div className="absolute inset-0 bg-[#00F2EA] rounded-full opacity-20 animate-ping"></div>
-                                                    <div className="relative w-20 h-20 bg-[#161616] border-2 border-[#00F2EA] rounded-full flex items-center justify-center"><i className="fa-solid fa-eye text-3xl text-[#00F2EA] animate-pulse"></i></div>
+                                                    <div className="relative w-24 h-24 bg-[#161616] border-2 border-[#00F2EA] rounded-full flex items-center justify-center">
+                                                        {status === 'COMPRESSING' && <i className="fa-solid fa-compress text-3xl text-[#00F2EA]"></i>}
+                                                        {status === 'UPLOADING' && <i className="fa-solid fa-cloud-arrow-up text-3xl text-[#00F2EA]"></i>}
+                                                        {status === 'ANALYZING' && <i className="fa-solid fa-brain text-3xl text-[#00F2EA] animate-pulse"></i>}
+                                                    </div>
                                                 </div>
-                                                <AnimatePresence mode='wait'>
-                                                    <motion.h2 key={loadingMsg} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="text-2xl font-bold text-white mb-2">{loadingMsg}</motion.h2>
-                                                </AnimatePresence>
-                                                <p className="text-sm text-gray-500 mt-2">This usually takes about 30 seconds.</p>
+                                                
+                                                <h2 className="text-2xl font-bold text-white mb-4">{STAGE_LABELS[status]}</h2>
+                                                
+                                                <ProgressBar progress={progress} label={
+                                                    status === 'COMPRESSING' ? 'Optimizing' :
+                                                    status === 'UPLOADING' ? 'Uploading' : 'Analyzing'
+                                                } />
+                                                
+                                                <p className="text-sm text-gray-500 mt-6">
+                                                    {status === 'ANALYZING' ? 'Our AI is reviewing every frame...' : 'Please wait...'}
+                                                </p>
                                             </div>
                                         )}
 
+                                        {/* Success State */}
                                         {status === 'SUCCESS' && result && (
-                                            <div className="animate-in fade-in slide-in-from-bottom-4">
-                                                <div className="flex justify-between mb-6">
-                                                    <h2 className="text-2xl font-bold text-white">Audit Report</h2>
-                                                    <button onClick={reset} className="text-gray-400 hover:text-white underline">Audit Another</button>
+                                            <div>
+                                                <div className="flex justify-between items-center mb-6">
+                                                    <h2 className="text-2xl font-bold text-white flex items-center gap-2">
+                                                        <i className="fa-solid fa-chart-line text-[#00F2EA]"></i>
+                                                        Audit Report
+                                                    </h2>
+                                                    <button onClick={reset} className="text-gray-400 hover:text-white transition-colors flex items-center gap-2">
+                                                        <i className="fa-solid fa-rotate-right"></i>
+                                                        Audit Another
+                                                    </button>
                                                 </div>
                                                 <AnalysisResult data={result} />
                                             </div>
                                         )}
                                         
+                                        {/* Error State */}
                                         {status === 'ERROR' && (
-                                            <div className="text-center py-20">
-                                                <h3 className="text-red-500 font-bold mb-2">Analysis Failed</h3>
-                                                <button onClick={reset} className="bg-white text-black px-6 py-3 rounded-lg font-bold">Try Again</button>
+                                            <div className="text-center py-16">
+                                                <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
+                                                    <i className="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i>
+                                                </div>
+                                                <h3 className="text-red-500 font-bold text-xl mb-2">Analysis Failed</h3>
+                                                <p className="text-gray-400 mb-6 max-w-md mx-auto">{errorMessage}</p>
+                                                <button onClick={reset} className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors">
+                                                    Try Again
+                                                </button>
                                             </div>
                                         )}
                                     </>
@@ -457,10 +773,11 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
 };
 
 // ==========================================
-// 6. SITE COMPONENTS (Landing Page)
+// 7. AUTH & SITE COMPONENTS
 // ==========================================
 
 const AuthContext = createContext<any>(null);
+
 const AuthProvider = ({ children }: any) => {
     const [user, setUser] = useState<any>(null);
     const [showAuthModal, setShowAuthModal] = useState(false);
@@ -490,24 +807,61 @@ const AuthProvider = ({ children }: any) => {
 
 const AuthModal = () => {
     const { showAuthModal, setShowAuthModal, login, signup, authView, setAuthView } = useContext(AuthContext);
-    const [email, setE] = useState(""); const [pass, setP] = useState(""); const [err, setErr] = useState("");
+    const [email, setE] = useState(""); 
+    const [pass, setP] = useState(""); 
+    const [err, setErr] = useState("");
+    const [loading, setLoading] = useState(false);
+    
     if(!showAuthModal) return null;
+    
+    const handleSubmit = async () => {
+        setLoading(true);
+        setErr("");
+        const res = authView === 'login' ? await login(email, pass) : await signup(email, pass);
+        setLoading(false);
+        if(res.error) setErr(res.error.message); 
+        else { setShowAuthModal(false); setE(""); setP(""); }
+    };
+    
     return (
         <div className="fixed inset-0 z-[200] bg-black/90 flex items-center justify-center p-4">
-            <div className="bg-[#111] border border-[#333] p-8 rounded-2xl w-full max-w-md relative">
-                <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-500">✕</button>
-                <h2 className="text-xl font-bold text-white mb-6">{authView === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
-                <input className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded mb-3 text-white" placeholder="Email" value={email} onChange={e => setE(e.target.value)} />
-                <input className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded mb-3 text-white" type="password" placeholder="Password" value={pass} onChange={e => setP(e.target.value)} />
-                {err && <p className="text-red-500 text-sm mb-3">{err}</p>}
-                <button className="w-full bg-white text-black font-bold p-3 rounded" onClick={async () => {
-                    const res = authView === 'login' ? await login(email, pass) : await signup(email, pass);
-                    if(res.error) setErr(res.error.message); else setShowAuthModal(false);
-                }}>{authView === 'login' ? 'Log In' : 'Sign Up'}</button>
-                <p className="text-center text-gray-500 text-sm mt-4 cursor-pointer" onClick={() => setAuthView(authView === 'login' ? 'signup' : 'login')}>
+            <motion.div 
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="bg-[#111] border border-[#333] p-8 rounded-2xl w-full max-w-md relative"
+            >
+                <button onClick={() => setShowAuthModal(false)} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors">
+                    <i className="fa-solid fa-xmark text-xl"></i>
+                </button>
+                <h2 className="text-2xl font-bold text-white mb-6">{authView === 'login' ? 'Welcome Back' : 'Create Account'}</h2>
+                <input 
+                    className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded-lg mb-3 text-white focus:border-[#00F2EA] focus:outline-none transition-colors" 
+                    placeholder="Email" 
+                    type="email"
+                    value={email} 
+                    onChange={e => setE(e.target.value)} 
+                />
+                <input 
+                    className="w-full bg-[#0a0a0a] border border-[#333] p-3 rounded-lg mb-3 text-white focus:border-[#00F2EA] focus:outline-none transition-colors" 
+                    type="password" 
+                    placeholder="Password" 
+                    value={pass} 
+                    onChange={e => setP(e.target.value)}
+                    onKeyDown={e => e.key === 'Enter' && handleSubmit()}
+                />
+                {err && <p className="text-red-500 text-sm mb-3 flex items-center gap-2"><i className="fa-solid fa-circle-exclamation"></i>{err}</p>}
+                <button 
+                    className="w-full bg-white text-black font-bold p-3 rounded-lg hover:bg-gray-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2" 
+                    onClick={handleSubmit}
+                    disabled={loading}
+                >
+                    {loading && <i className="fa-solid fa-spinner animate-spin"></i>}
+                    {authView === 'login' ? 'Log In' : 'Sign Up'}
+                </button>
+                <p className="text-center text-gray-500 text-sm mt-4 cursor-pointer hover:text-white transition-colors" onClick={() => setAuthView(authView === 'login' ? 'signup' : 'login')}>
                     {authView === 'login' ? "Need an account? Sign up" : "Have an account? Log in"}
                 </p>
-            </div>
+            </motion.div>
         </div>
     )
 }
@@ -518,10 +872,18 @@ const Navbar = () => {
         <nav className="fixed w-full z-50 bg-black/80 backdrop-blur-md border-b border-white/10 py-4">
             <div className="max-w-7xl mx-auto px-6 flex justify-between items-center">
                 <span className="font-bold text-xl text-white">ViralAudit</span>
-                <div className="flex gap-4">
-                    {user ? <button onClick={logout} className="text-sm text-gray-300">Logout</button> : 
-                    <><button onClick={() => { setAuthView('login'); setShowAuthModal(true); }} className="text-sm text-gray-300">Login</button>
-                    <button onClick={() => { setAuthView('signup'); setShowAuthModal(true); }} className="bg-white text-black px-4 py-2 rounded text-sm font-bold">Get Started</button></>}
+                <div className="flex gap-4 items-center">
+                    {user ? (
+                        <>
+                            <span className="text-sm text-gray-400 hidden sm:block">{user.email}</span>
+                            <button onClick={logout} className="text-sm text-gray-300 hover:text-white transition-colors">Logout</button>
+                        </>
+                    ) : (
+                        <>
+                            <button onClick={() => { setAuthView('login'); setShowAuthModal(true); }} className="text-sm text-gray-300 hover:text-white transition-colors">Login</button>
+                            <button onClick={() => { setAuthView('signup'); setShowAuthModal(true); }} className="bg-white text-black px-4 py-2 rounded-lg text-sm font-bold hover:bg-gray-200 transition-colors">Get Started</button>
+                        </>
+                    )}
                 </div>
             </div>
         </nav>
@@ -532,9 +894,17 @@ const Hero = () => {
     const { openTool } = useContext(AuthContext);
     return (
         <section className="pt-40 pb-20 px-6 text-center">
-            <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">Stop Guessing.<br/>Audit Your Ads Instantly.</h1>
-            <p className="text-gray-400 text-xl max-w-2xl mx-auto mb-10">Upload your video creative and let our AI analyze your hooks, pacing, and copy for viral potential.</p>
-            <button onClick={openTool} className="bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_20px_rgba(255,255,255,0.3)]">Launch Audit Tool</button>
+            <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
+                <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
+                    Stop Guessing.<br/>
+                    <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]">Audit Your Ads Instantly.</span>
+                </h1>
+                <p className="text-gray-400 text-xl max-w-2xl mx-auto mb-10">Upload your video creative and let our AI analyze your hooks, pacing, and copy for viral potential.</p>
+                <button onClick={openTool} className="bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(0,242,234,0.3)] flex items-center gap-2 mx-auto">
+                    <i className="fa-solid fa-rocket"></i>
+                    Launch Audit Tool
+                </button>
+            </motion.div>
         </section>
     );
 }
@@ -545,20 +915,30 @@ const Pricing = () => {
         <section id="pricing" className="py-20 border-t border-white/5">
             <div className="max-w-5xl mx-auto px-6 text-center">
                 <h2 className="text-3xl font-bold text-white mb-10">Simple Pricing</h2>
-                <div className="inline-block p-4 mb-10 rounded-lg bg-[#1a1a1a] border border-[#333]"><span className="text-xs font-bold text-[#00F2EA] uppercase mr-2">Free Plan</span><span className="text-sm text-gray-400">Includes 3 free audits per account.</span></div>
+                <div className="inline-block p-4 mb-10 rounded-lg bg-[#1a1a1a] border border-[#333]">
+                    <span className="text-xs font-bold text-[#00F2EA] uppercase mr-2">Free Plan</span>
+                    <span className="text-sm text-gray-400">Includes 3 free audits per account.</span>
+                </div>
                 <div className="grid md:grid-cols-2 gap-8 max-w-3xl mx-auto">
-                    <div className="bg-[#0a0a0a] p-8 rounded-2xl border border-white/10 text-left">
+                    <div className="bg-[#0a0a0a] p-8 rounded-2xl border border-white/10 text-left hover:border-white/20 transition-colors">
                         <h3 className="text-xl font-bold text-white">Starter</h3>
                         <p className="text-4xl font-bold text-white my-4">$29<span className="text-sm text-gray-500">/mo</span></p>
-                        <button onClick={openTool} className="w-full border border-white/20 text-white py-3 rounded-lg mb-6">Get Started</button>
-                        <ul className="text-gray-400 space-y-2 text-sm"><li>✓ 50 Audits/mo</li><li>✓ Basic Analysis</li></ul>
+                        <button onClick={openTool} className="w-full border border-white/20 text-white py-3 rounded-lg mb-6 hover:bg-white/5 transition-colors">Get Started</button>
+                        <ul className="text-gray-400 space-y-2 text-sm">
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i>50 Audits/mo</li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i>Basic Analysis</li>
+                        </ul>
                     </div>
-                    <div className="bg-[#0f0f0f] p-8 rounded-2xl border border-white/30 shadow-[0_0_30px_rgba(255,255,255,0.05)] relative text-left">
-                        <div className="absolute top-0 right-0 bg-white text-black text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>
+                    <div className="bg-[#0f0f0f] p-8 rounded-2xl border border-[#00F2EA]/30 shadow-[0_0_30px_rgba(0,242,234,0.1)] relative text-left">
+                        <div className="absolute top-0 right-0 bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black text-xs font-bold px-3 py-1 rounded-bl-xl rounded-tr-xl">POPULAR</div>
                         <h3 className="text-xl font-bold text-white">Pro</h3>
                         <p className="text-4xl font-bold text-white my-4">$49<span className="text-sm text-gray-500">/mo</span></p>
-                        <button onClick={openTool} className="w-full bg-white text-black py-3 rounded-lg mb-6 font-bold">Start Pro Trial</button>
-                        <ul className="text-gray-400 space-y-2 text-sm"><li>✓ 500 Audits/mo</li><li>✓ Deep Analysis</li><li>✓ Script Rewrites</li></ul>
+                        <button onClick={openTool} className="w-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black py-3 rounded-lg mb-6 font-bold hover:opacity-90 transition-opacity">Start Pro Trial</button>
+                        <ul className="text-gray-400 space-y-2 text-sm">
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i>500 Audits/mo</li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i>Deep Analysis</li>
+                            <li><i className="fa-solid fa-check text-green-500 mr-2"></i>Script Rewrites</li>
+                        </ul>
                     </div>
                 </div>
             </div>
@@ -568,18 +948,25 @@ const Pricing = () => {
 
 const Features = () => {
     const FeatureCard = ({ icon, title, desc }: any) => (
-        <div className="p-8 rounded-2xl bg-[#0a0a0a] border border-white/10">
-            <div className="w-12 h-12 bg-white/5 rounded-xl flex items-center justify-center mb-6 text-xl"><i className={icon}></i></div>
-            <h3 className="text-xl font-bold mb-3">{title}</h3>
+        <motion.div 
+            initial={{ opacity: 0, y: 20 }}
+            whileInView={{ opacity: 1, y: 0 }}
+            viewport={{ once: true }}
+            className="p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-colors"
+        >
+            <div className="w-12 h-12 bg-gradient-to-br from-[#00F2EA]/20 to-[#00F2EA]/5 rounded-xl flex items-center justify-center mb-6 text-xl text-[#00F2EA]">
+                <i className={icon}></i>
+            </div>
+            <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
             <p className="text-gray-400 text-sm">{desc}</p>
-        </div>
+        </motion.div>
     );
     return (
         <section id="features" className="py-20">
             <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-6">
-                <FeatureCard icon="fa-solid fa-list-check" title="Frame-by-Frame" desc="Detailed breakdown of your hook, body, and CTA." />
-                <FeatureCard icon="fa-solid fa-wand-magic-sparkles" title="Actionable Fixes" desc="Don't just get a score. Get a 'Fix List' to improve ROAS." />
-                <FeatureCard icon="fa-solid fa-shield-halved" title="Secure & Private" desc="Your creatives are analyzed and discarded. We don't train on your data." />
+                <FeatureCard icon="fa-solid fa-list-check" title="Frame-by-Frame" desc="Detailed breakdown of your hook, body, and CTA with timestamp references." />
+                <FeatureCard icon="fa-solid fa-wand-magic-sparkles" title="Actionable Fixes" desc="Don't just get a score. Get a specific 'Fix List' to improve ROAS." />
+                <FeatureCard icon="fa-solid fa-shield-halved" title="Secure & Private" desc="Your creatives are analyzed and discarded. We never train on your data." />
             </div>
         </section>
     );
@@ -588,20 +975,23 @@ const Features = () => {
 const Background = () => (
     <div className="fixed inset-0 z-[-1] bg-black">
         <div className="absolute inset-0 bg-[linear-gradient(to_right,#8080800a_1px,transparent_1px),linear-gradient(to_bottom,#8080800a_1px,transparent_1px)] bg-[size:40px_40px]"></div>
-        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-purple-900/20 blur-[120px] rounded-full"></div>
+        <div className="absolute top-[-10%] left-[-10%] w-[500px] h-[500px] bg-[#00F2EA]/10 blur-[120px] rounded-full"></div>
+        <div className="absolute bottom-[-10%] right-[-10%] w-[400px] h-[400px] bg-purple-900/20 blur-[120px] rounded-full"></div>
     </div>
 );
 
 const App = () => {
     return (
         <AuthProvider>
-            <div className="min-h-screen text-white font-sans selection:bg-pink-500/30">
+            <div className="min-h-screen text-white font-sans selection:bg-[#00F2EA]/30">
                 <Background />
                 <Navbar />
                 <Hero />
                 <Features />
                 <Pricing />
-                <footer className="py-10 text-center text-gray-600 text-xs border-t border-white/5">© 2025 ViralAudit Inc.</footer>
+                <footer className="py-10 text-center text-gray-600 text-xs border-t border-white/5">
+                    © 2025 ViralAudit Inc. All rights reserved.
+                </footer>
             </div>
         </AuthProvider>
     );
