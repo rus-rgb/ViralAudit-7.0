@@ -130,15 +130,29 @@ const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> =>
         formData.append('licenseKey', email);
         formData.append('systemPrompt', BRUTAL_SYSTEM_PROMPT);
 
+        console.log("📤 Sending to Worker:", { 
+            fileName: file.name, 
+            fileSize: `${(file.size / 1024 / 1024).toFixed(2)} MB`,
+            mimeType: file.type 
+        });
+
         const response = await fetch(WORKER_URL, {
             method: "POST",
             body: formData // Browser handles headers automatically for FormData
         });
 
+        // Check if response is OK before parsing
+        if (!response.ok) {
+            const errorText = await response.text();
+            console.error("❌ Worker Error Response:", response.status, errorText);
+            throw new Error(`Worker returned ${response.status}: ${errorText}`);
+        }
+
         const json = await response.json();
+        console.log("📥 Worker Response:", json);
 
         if (json.error) throw new Error(json.error.message || "Worker Error");
-        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned");
+        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned from AI");
 
         const text = json.candidates[0].content.parts[0].text;
         
@@ -163,7 +177,7 @@ const analyzeVideo = async (file: File, email: string): Promise<AnalysisData> =>
         };
 
     } catch (error) {
-        console.error("Analysis Failed:", error);
+        console.error("❌ Analysis Failed:", error);
         throw error;
     }
 };
@@ -270,6 +284,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
 // ==========================================
 
 const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
+    const { setShowAuthModal, setAuthView } = useContext(AuthContext);
     const [file, setFile] = useState<File | null>(null);
     const [status, setStatus] = useState<'IDLE' | 'UPLOADING' | 'ANALYZING' | 'SUCCESS' | 'ERROR'>('IDLE');
     const [result, setResult] = useState<AnalysisData | null>(null);
@@ -319,13 +334,25 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const runAnalysis = async () => {
         if (!file || !user || auditCount >= FREE_LIMIT) return;
         
+        // Validate file before upload
+        const MAX_SIZE_MB = 100;
+        if (file.size > MAX_SIZE_MB * 1024 * 1024) {
+            alert(`File too large. Maximum size is ${MAX_SIZE_MB}MB.`);
+            return;
+        }
+        
+        if (!file.type.startsWith('video/')) {
+            alert('Please upload a valid video file.');
+            return;
+        }
+        
         try {
             setStatus('UPLOADING');
             // 🚀 FAST PATH: No base64 conversion here anymore
             
             setStatus('ANALYZING'); 
             // 🚀 FAST PATH: Send raw file directly to worker
-            const data = await analyzeVideo(file, file.type, user.email);
+            const data = await analyzeVideo(file, user.email);
             
             setResult(data);
             setStatus('SUCCESS');
