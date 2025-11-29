@@ -1,7 +1,7 @@
 {
-  "name": "app",
+  "name": "viralaudit-ai",
   "private": true,
-  "version": "0.0.0",
+  "version": "1.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -13,7 +13,7 @@
     "react-dom": "^19.2.0",
     "framer-motion": "^12.23.24",
     "@supabase/supabase-js": "^2.39.0",
-    "@google/genai": "^0.1.1"
+    "@google/generative-ai": "^0.21.0"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
