@@ -1,21 +1,21 @@
-import React, { useState, useEffect, useContext, createContext } from "react";
+import React, { useState, useEffect, useContext, createContext, useMemo } from "react";
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
+import { GoogleGenerativeAI } from "@google/generative-ai";
 
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-// 🔴 Your Worker URL (The backend that holds the API Key)
-const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/"; 
-
+const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
 
 const supabase = (SUPABASE_URL && SUPABASE_KEY) ? createClient(SUPABASE_URL, SUPABASE_KEY) : null;
+const genAI = new GoogleGenerativeAI(GEMINI_API_KEY);
 
 // ==========================================
-// 2. DATA TYPES
+// 2. TYPES & DATA STRUCTURES
 // ==========================================
 interface AuditCategory {
     score: number;
@@ -41,10 +41,9 @@ interface AnalysisData {
     checks: CheckItem[];
 }
 
-// Default state to prevent crashes
 const DEFAULT_ANALYSIS: AnalysisData = {
     overallScore: 0,
-    verdict: "Analysis could not be completed.",
+    verdict: "Analysis unavailable. Please try again.",
     categories: {
         visual: { score: 0, feedback: "N/A", fix: "" },
         audio: { score: 0, feedback: "N/A", fix: "" },
@@ -54,60 +53,90 @@ const DEFAULT_ANALYSIS: AnalysisData = {
 };
 
 // ==========================================
-// 3. AI SERVICE (Via Worker)
+// 3. AI SERVICE (THE RUTHLESS STRATEGIST)
 // ==========================================
 const SYSTEM_PROMPT = `
-You are a brutal, data-driven Creative Director. Analyze this video ad.
-Return a VALID JSON object. Do not add markdown blocks.
+You are a world-class Direct Response Creative Strategist (think David Ogilvy meets a brutal TikTok media buyer). 
+Your job is to audit video ads with extreme scrutiny. You are NOT here to be nice. You are here to increase ROAS.
 
-CRITICAL INSTRUCTIONS FOR LANGUAGE:
-1. **WRITE AT AN 8TH-GRADE READING LEVEL.** 2. Use simple, short sentences. 
-3. No marketing jargon.
-4. Be direct.
+CRITICAL INSTRUCTIONS:
+1. **BE BRUTAL:** Do not use fluff. If it sucks, say it sucks and say WHY.
+2. **USE TIMESTAMPS:** You MUST reference specific moments (e.g., "At 0:03, the pacing dies.").
+3. **FOCUS ON METRICS:** Analyze Hook Rate (0-3s), Hold Rate (Body), and Conversion (CTA).
+4. **NO GENERIC ADVICE:** Do not say "make it better." Say "Cut the first 2 seconds" or "Change the font to white."
+
+OUTPUT FORMAT:
+Return ONLY a valid JSON object. No markdown.
 
 Structure:
 {
-  "overallScore": 5,
-  "verdict": "One short verdict.",
+  "overallScore": number (0-10, be harsh. 7 is a great ad. 9 is viral.),
+  "verdict": "One distinct, brutal sentence summarizing the creative potential.",
   "categories": {
-    "visual": { "score": 50, "feedback": "...", "fix": "..." },
-    "audio": { "score": 50, "feedback": "...", "fix": "..." },
-    "copy": { "score": 50, "feedback": "...", "fix": "..." }
+    "visual": { 
+      "score": number (0-100), 
+      "feedback": "Analyze the scroll-stop capability, aesthetic, and pacing. Mention specific shots.", 
+      "fix": "Direct instruction to the editor on what to cut or change." 
+    },
+    "audio": { 
+      "score": number (0-100), 
+      "feedback": "Analyze the voiceover tone, music choice, and sound effects. Is it annoying? Is it boring?", 
+      "fix": "Direct instruction on audio mixing or voiceover direction." 
+    },
+    "copy": { 
+      "score": number (0-100), 
+      "feedback": "Analyze the script for pain points, objections, and sales psychology.", 
+      "fix": "Rewrite the main hook or CTA to be punchier." 
+    }
   },
   "checks": [
-    { "label": "Hook Efficiency", "status": "WARN", "details": "...", "fix": "..." },
-    { "label": "Pacing", "status": "WARN", "details": "...", "fix": "..." },
-    { "label": "Script Impact", "status": "WARN", "details": "...", "fix": "..." },
-    { "label": "Call to Action", "status": "WARN", "details": "...", "fix": "..." }
+    { 
+      "label": "The Hook (0-3s)", 
+      "status": "PASS/FAIL/WARN", 
+      "details": "Does it stop the scroll? Analyze the first 3 seconds specifically.", 
+      "fix": "How to make the first 3 seconds explosive." 
+    },
+    { 
+      "label": "Pacing & Retention", 
+      "status": "PASS/FAIL/WARN", 
+      "details": "Are there cuts every 2-4 seconds? Where does it drag? Reference timestamps.", 
+      "fix": "Where to trim the fat." 
+    },
+    { 
+      "label": "Storytelling & Pain", 
+      "status": "PASS/FAIL/WARN", 
+      "details": "Does it agitate a problem? Does it present a solution clearly?", 
+      "fix": "How to sharpen the narrative arc." 
+    },
+    { 
+      "label": "The Offer / CTA", 
+      "status": "PASS/FAIL/WARN", 
+      "details": "Is the next step clear? Is the offer compelling?", 
+      "fix": "A stronger, direct-response CTA." 
+    }
   ]
 }
 `;
 
 const analyzeVideo = async (base64Data: string, mimeType: string, email: string): Promise<AnalysisData> => {
     try {
-        const response = await fetch(WORKER_URL, {
-            method: "POST",
-            headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({
-                base64Data: base64Data,
-                mimeType: mimeType,
-                licenseKey: email, 
-                systemPrompt: SYSTEM_PROMPT 
-            })
-        });
-
-        const json = await response.json();
-
-        if (json.error) throw new Error(json.error.message || "Worker Error");
-        if (!json.candidates?.[0]?.content?.parts?.[0]?.text) throw new Error("No analysis returned");
-
-        const text = json.candidates[0].content.parts[0].text;
+        // Using Flash-8B for speed, but with the new detailed prompt
+        const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
+        const result = await model.generateContent([
+            SYSTEM_PROMPT,
+            { inlineData: { data: base64Data, mimeType: mimeType } }
+        ]);
         
-        // Robust JSON Extraction
+        const text = result.response.text();
+        console.log("Raw AI Output:", text);
+
         const jsonStart = text.indexOf('{');
         const jsonEnd = text.lastIndexOf('}');
         
-        if (jsonStart === -1 || jsonEnd === -1) throw new Error("Invalid JSON from AI");
+        if (jsonStart === -1 || jsonEnd === -1) {
+            console.error("Invalid JSON format received");
+            return DEFAULT_ANALYSIS;
+        }
 
         const cleanJson = text.substring(jsonStart, jsonEnd + 1);
         const parsed = JSON.parse(cleanJson);
@@ -124,8 +153,8 @@ const analyzeVideo = async (base64Data: string, mimeType: string, email: string)
         };
 
     } catch (error) {
-        console.error("Analysis Failed:", error);
-        throw error;
+        console.error("Analysis Error:", error);
+        throw new Error("Failed to analyze video.");
     }
 };
 
@@ -146,12 +175,13 @@ const fileToBase64 = (file: File): Promise<string> => {
 // ==========================================
 
 const ScoreCircle = ({ score }: { score: number }) => {
+    const safeScore = score || 0;
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - ((score || 0) / 10) * circumference;
+    const offset = circumference - (safeScore / 10) * circumference;
     let color = '#ef4444'; 
-    if (score >= 5) color = '#eab308'; 
-    if (score >= 8) color = '#22c55e'; 
+    if (safeScore >= 5) color = '#eab308'; 
+    if (safeScore >= 8) color = '#22c55e'; 
 
     return (
         <div className="relative w-24 h-24 flex items-center justify-center shrink-0">
@@ -159,7 +189,7 @@ const ScoreCircle = ({ score }: { score: number }) => {
                 <circle cx="48" cy="48" r={radius} stroke="#333" strokeWidth="6" fill="transparent" />
                 <circle cx="48" cy="48" r={radius} stroke={color} strokeWidth="6" fill="transparent" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
             </svg>
-            <span className="absolute text-2xl font-bold text-white">{score || 0}/10</span>
+            <span className="absolute text-2xl font-bold text-white">{safeScore}/10</span>
         </div>
     );
 };
@@ -174,10 +204,18 @@ const StatusChip = ({ status }: { status: string }) => {
 };
 
 const AnalysisResult = ({ data }: { data: AnalysisData }) => {
-    if (!data || !data.categories) return <div className="text-red-500">Error displaying results.</div>;
+    if (!data || !data.categories) {
+        return (
+            <div className="p-4 bg-red-900/20 border border-red-500 rounded text-center">
+                <h3 className="text-red-500 font-bold">Display Error</h3>
+                <p className="text-gray-400 text-sm">Data structure invalid. Please try again.</p>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-8 animate-in fade-in pb-10">
+            {/* Verdict */}
             <div className="flex flex-col md:flex-row gap-6 items-center bg-[#1a1a1a] p-8 rounded-2xl border border-white/10 shadow-lg">
                 <ScoreCircle score={data.overallScore} />
                 <div>
@@ -186,6 +224,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
                 </div>
             </div>
 
+            {/* Pillars */}
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                 {[
                     { title: 'Visuals', icon: '👁️', data: data.categories.visual },
@@ -208,6 +247,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
                 ))}
             </div>
 
+            {/* Checks */}
             <div>
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">Diagnostic Checks</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -228,7 +268,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
 };
 
 // ==========================================
-// 5. MAIN LOGIC
+// 5. MAIN LOGIC (Auth + Upload + Modal)
 // ==========================================
 
 const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
@@ -240,14 +280,23 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const FREE_LIMIT = 3;
 
     const LOADING_MESSAGES = [
-        "Analyzing hook retention...", "Judging your font choices...", "Calculating viral coefficient...",
-        "Scanning for boring intros...", "Reviewing color grading...", "Checking for 'umms' and 'ahhs'...",
-        "Comparing to top 1% of ads...", "Preparing brutal feedback...", "Checking pacing...", "Writing the roast..."
+        "Analyzing hook retention (0-3s)...",
+        "Calculating viral coefficient...",
+        "Scanning for boring intros...",
+        "Reviewing pacing and cuts...",
+        "Checking for 'umms' and 'ahhs'...",
+        "Comparing to top 1% of ads...",
+        "Preparing brutal feedback...",
+        "Evaluating call to action...",
+        "Almost done, writing the roast..."
     ];
 
     useEffect(() => { 
-        if(!isOpen) { setFile(null); setResult(null); setStatus('IDLE'); } 
-        else if (user && supabase) { loadUsage(); }
+        if(!isOpen) { 
+            setFile(null); setResult(null); setStatus('IDLE'); 
+        } else if (user && supabase) {
+            loadUsage();
+        }
     }, [isOpen, user]);
 
     useEffect(() => {
@@ -262,26 +311,20 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
         return () => clearInterval(interval);
     }, [status]);
 
-    // 🛡️ FIXED: Reset function defined in scope
-    const reset = () => {
-        setFile(null);
-        setStatus('IDLE');
-        setResult(null);
-    };
-
     const loadUsage = async () => {
         if(!user || !supabase) return;
-        try {
-            // 🛡️ FIXED: Use maybeSingle() to prevent 406 errors on new users
-            const { data } = await supabase.from('profiles').select('audit_count').eq('id', user.id).maybeSingle();
-            if(data) setAuditCount(data.audit_count);
-        } catch (e) {
-            console.error("Supabase Error:", e);
-        }
+        const { data } = await supabase.from('profiles').select('audit_count').eq('id', user.id).single();
+        if(data) setAuditCount(data.audit_count);
     };
 
     const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
         if (e.target.files && e.target.files[0]) { setFile(e.target.files[0]); }
+    };
+
+    const reset = () => {
+        setFile(null);
+        setStatus('IDLE');
+        setResult(null);
     };
 
     const runAnalysis = async () => {
@@ -349,18 +392,22 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
                                             </>
                                         )}
 
-                                        {(status === 'UPLOADING' || status === 'ANALYZING') && (
+                                        {status === 'UPLOADING' && (
+                                            <div className="flex flex-col items-center justify-center py-24">
+                                                <div className="w-16 h-16 border-4 border-[#333] border-t-[#00F2EA] rounded-full animate-spin mb-6"></div>
+                                                <h2 className="text-2xl font-bold text-white animate-pulse">Uploading Video...</h2>
+                                            </div>
+                                        )}
+
+                                        {status === 'ANALYZING' && (
                                             <div className="flex flex-col items-center justify-center py-24 text-center">
                                                 <div className="relative w-20 h-20 mb-8">
                                                     <div className="absolute inset-0 bg-[#00F2EA] rounded-full opacity-20 animate-ping"></div>
                                                     <div className="relative w-20 h-20 bg-[#161616] border-2 border-[#00F2EA] rounded-full flex items-center justify-center"><i className="fa-solid fa-eye text-3xl text-[#00F2EA] animate-pulse"></i></div>
                                                 </div>
-                                                {status === 'UPLOADING' ? 
-                                                    <h2 className="text-2xl font-bold text-white animate-pulse">Uploading Video...</h2> :
-                                                    <AnimatePresence mode='wait'>
-                                                        <motion.h2 key={loadingMsg} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="text-2xl font-bold text-white mb-2">{loadingMsg}</motion.h2>
-                                                    </AnimatePresence>
-                                                }
+                                                <AnimatePresence mode='wait'>
+                                                    <motion.h2 key={loadingMsg} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -10 }} transition={{ duration: 0.3 }} className="text-2xl font-bold text-white mb-2">{loadingMsg}</motion.h2>
+                                                </AnimatePresence>
                                                 <p className="text-sm text-gray-500 mt-2">This usually takes about 30 seconds.</p>
                                             </div>
                                         )}
