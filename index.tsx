@@ -2,12 +2,11 @@ import React, { useState, useEffect, useContext, createContext, useMemo } from "
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAI } from "@google/generative-ai"; // <--- FIXED IMPORT
+import { GoogleGenerativeAI } from "@google/genai";
 
 // ==========================================
 // 1. CONFIGURATION
 // ==========================================
-// 🔴 IMPORTANT: Ensure these are set in Vercel Environment Variables
 const GEMINI_API_KEY = process.env.GEMINI_API_KEY || "";
 const SUPABASE_URL = process.env.SUPABASE_URL || "";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || "";
@@ -43,35 +42,32 @@ interface AnalysisData {
 }
 
 // ==========================================
-// 3. AI SERVICE (The Brain)
+// 3. AI SERVICE (With Robust Parsing)
 // ==========================================
 const SYSTEM_PROMPT = `
 You are a brutal, data-driven Creative Director. Analyze this video ad.
-Return the result as a strict JSON object.
-DO NOT use Markdown formatting. Just return the raw JSON string.
-KEEP FEEDBACK CONCISE (Max 2 sentences per field).
+Return a VALID JSON object. Do not add markdown blocks.
 
 Structure:
 {
-  "overallScore": number (0-10),
-  "verdict": "One punchy sentence verdict.",
+  "overallScore": 5,
+  "verdict": "One short verdict.",
   "categories": {
-    "visual": { "score": number (0-100), "feedback": "...", "fix": "..." },
-    "audio": { "score": number (0-100), "feedback": "...", "fix": "..." },
-    "copy": { "score": number (0-100), "feedback": "...", "fix": "..." }
+    "visual": { "score": 50, "feedback": "...", "fix": "..." },
+    "audio": { "score": 50, "feedback": "...", "fix": "..." },
+    "copy": { "score": 50, "feedback": "...", "fix": "..." }
   },
   "checks": [
-    { "label": "Hook Efficiency", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
-    { "label": "Pacing", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
-    { "label": "Script Impact", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
-    { "label": "Call to Action", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." }
+    { "label": "Hook Efficiency", "status": "WARN", "details": "...", "fix": "..." },
+    { "label": "Pacing", "status": "WARN", "details": "...", "fix": "..." },
+    { "label": "Script Impact", "status": "WARN", "details": "...", "fix": "..." },
+    { "label": "Call to Action", "status": "WARN", "details": "...", "fix": "..." }
   ]
 }
 `;
 
 const analyzeVideo = async (base64Data: string, mimeType: string): Promise<AnalysisData> => {
     try {
-        // ⚡ Using Flash-8B for max speed
         const model = genAI.getGenerativeModel({ model: "gemini-1.5-flash-8b" });
         const result = await model.generateContent([
             SYSTEM_PROMPT,
@@ -79,8 +75,32 @@ const analyzeVideo = async (base64Data: string, mimeType: string): Promise<Analy
         ]);
         
         const text = result.response.text();
-        const cleanJson = text.replace(/```json/g, '').replace(/```/g, '').trim();
-        return JSON.parse(cleanJson) as AnalysisData;
+        console.log("Raw AI Response:", text); // Debug log
+
+        // 🛡️ ROBUST JSON EXTRACTOR
+        // Finds the first '{' and last '}' to ignore any intro text the AI might add
+        const jsonStart = text.indexOf('{');
+        const jsonEnd = text.lastIndexOf('}');
+        
+        if (jsonStart === -1 || jsonEnd === -1) {
+            throw new Error("Invalid JSON response from AI");
+        }
+
+        const cleanJson = text.substring(jsonStart, jsonEnd + 1);
+        const parsed = JSON.parse(cleanJson);
+
+        // 🛡️ SAFETY DEFAULTS (Prevents Black Screen if fields are missing)
+        return {
+            overallScore: parsed.overallScore || 0,
+            verdict: parsed.verdict || "Analysis incomplete.",
+            categories: {
+                visual: parsed.categories?.visual || { score: 0, feedback: "No visual analysis.", fix: "Check video." },
+                audio: parsed.categories?.audio || { score: 0, feedback: "No audio analysis.", fix: "Check audio." },
+                copy: parsed.categories?.copy || { score: 0, feedback: "No copy analysis.", fix: "Check script." }
+            },
+            checks: Array.isArray(parsed.checks) ? parsed.checks : []
+        };
+
     } catch (error) {
         console.error("Analysis Error:", error);
         throw new Error("Failed to analyze video.");
@@ -100,13 +120,13 @@ const fileToBase64 = (file: File): Promise<string> => {
 };
 
 // ==========================================
-// 4. DASHBOARD UI COMPONENTS
+// 4. DASHBOARD UI COMPONENTS (With Safety Checks)
 // ==========================================
 
 const ScoreCircle = ({ score }: { score: number }) => {
     const radius = 36;
     const circumference = 2 * Math.PI * radius;
-    const offset = circumference - (score / 10) * circumference;
+    const offset = circumference - ((score || 0) / 10) * circumference;
     let color = '#ef4444'; 
     if (score >= 5) color = '#eab308'; 
     if (score >= 8) color = '#22c55e'; 
@@ -117,7 +137,7 @@ const ScoreCircle = ({ score }: { score: number }) => {
                 <circle cx="48" cy="48" r={radius} stroke="#333" strokeWidth="6" fill="transparent" />
                 <circle cx="48" cy="48" r={radius} stroke={color} strokeWidth="6" fill="transparent" strokeDasharray={circumference} strokeDashoffset={offset} strokeLinecap="round" />
             </svg>
-            <span className="absolute text-2xl font-bold text-white">{score}/10</span>
+            <span className="absolute text-2xl font-bold text-white">{score || 0}/10</span>
         </div>
     );
 };
@@ -128,10 +148,13 @@ const StatusChip = ({ status }: { status: string }) => {
         FAIL: 'bg-red-500/10 text-red-500 border-red-500/20',
         WARN: 'bg-yellow-500/10 text-yellow-500 border-yellow-500/20',
     };
-    return <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${styles[status] || styles.WARN}`}>{status}</span>;
+    return <span className={`px-2 py-0.5 rounded text-[10px] font-bold border ${styles[status] || styles.WARN}`}>{status || "WARN"}</span>;
 };
 
 const AnalysisResult = ({ data }: { data: AnalysisData }) => {
+    // 🛡️ Extra Safety: Ensure data exists before rendering
+    if (!data || !data.categories) return <div className="text-red-500">Error displaying results.</div>;
+
     return (
         <div className="space-y-8 animate-in fade-in pb-10">
             {/* Verdict */}
@@ -153,10 +176,10 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
                     <div key={pillar.title} className="bg-[#1a1a1a] p-6 rounded-xl border border-white/10 flex flex-col h-full">
                         <div className="flex justify-between items-center mb-4 pb-3 border-b border-white/5">
                             <div className="flex items-center gap-2 font-bold text-lg text-white"><span>{pillar.icon}</span> {pillar.title}</div>
-                            <span className={`font-mono font-bold ${pillar.data.score > 70 ? 'text-green-400' : 'text-yellow-400'}`}>{pillar.data.score}%</span>
+                            <span className={`font-mono font-bold ${(pillar.data?.score || 0) > 70 ? 'text-green-400' : 'text-yellow-400'}`}>{pillar.data?.score || 0}%</span>
                         </div>
-                        <p className="text-sm text-gray-400 mb-4 leading-relaxed flex-grow">{pillar.data.feedback}</p>
-                        {pillar.data.fix && (
+                        <p className="text-sm text-gray-400 mb-4 leading-relaxed flex-grow">{pillar.data?.feedback || "No feedback available."}</p>
+                        {pillar.data?.fix && (
                             <div className="mt-auto pt-3 border-t border-white/5">
                                 <p className="text-xs text-[#00F2EA] font-bold uppercase mb-1">Fix:</p>
                                 <p className="text-sm text-white italic">{pillar.data.fix}</p>
@@ -170,7 +193,7 @@ const AnalysisResult = ({ data }: { data: AnalysisData }) => {
             <div>
                 <h3 className="text-xl font-bold text-white mb-6 flex items-center gap-2">Diagnostic Checks</h3>
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    {data.checks.map((check, idx) => (
+                    {(data.checks || []).map((check, idx) => (
                         <div key={idx} className="bg-[#1a1a1a] p-5 rounded-xl border border-white/10">
                             <div className="flex justify-between items-center mb-3">
                                 <span className="text-xs font-bold text-gray-500 uppercase tracking-wider">{check.label}</span>
@@ -198,7 +221,6 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
     const [loadingMsg, setLoadingMsg] = useState("Initializing...");
     const FREE_LIMIT = 3;
 
-    // 🎭 THE ENTERTAINMENT: Funny loading messages
     const LOADING_MESSAGES = [
         "Analyzing hook retention...",
         "Judging your font choices...",
@@ -249,7 +271,7 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
             setStatus('UPLOADING');
             const base64 = await fileToBase64(file);
 
-            setStatus('ANALYZING'); // Triggers funny messages
+            setStatus('ANALYZING'); 
             const data = await analyzeVideo(base64, file.type);
             
             setResult(data);
@@ -260,7 +282,7 @@ const ViralAuditTool = ({ isOpen, onClose, user, triggerUpgrade }: any) => {
             if(supabase) await supabase.from('profiles').update({ audit_count: newCount }).eq('id', user.id);
 
         } catch (e) {
-            console.error(e);
+            console.error("FULL ERROR:", e);
             setStatus('ERROR');
         }
     };
