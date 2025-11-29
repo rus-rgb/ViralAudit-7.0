@@ -2,7 +2,7 @@ import React, { useState, useEffect, useContext, createContext, useMemo } from "
 import { createRoot } from "react-dom/client";
 import { motion, AnimatePresence } from "framer-motion";
 import { createClient } from "@supabase/supabase-js";
-import { GoogleGenerativeAI } from "@google/genai";
+import { GoogleGenerativeAI } from "@google/generative-ai"; // <--- FIXED IMPORT
 
 // ==========================================
 // 1. CONFIGURATION
@@ -43,31 +43,28 @@ interface AnalysisData {
 }
 
 // ==========================================
-// 3. AI SERVICE (The Brain - NOW SIMPLIFIED)
+// 3. AI SERVICE (The Brain)
 // ==========================================
 const SYSTEM_PROMPT = `
 You are a brutal, data-driven Creative Director. Analyze this video ad.
-Return the result as a strict JSON object. DO NOT use Markdown formatting.
-
-CRITICAL INSTRUCTIONS FOR LANGUAGE:
-1. **WRITE AT AN 8TH-GRADE READING LEVEL.** 2. Use simple, short sentences. 
-3. Do NOT use complex marketing jargon (e.g., instead of "optimize retention", say "keep them watching").
-4. Be direct and punchy.
+Return the result as a strict JSON object.
+DO NOT use Markdown formatting. Just return the raw JSON string.
+KEEP FEEDBACK CONCISE (Max 2 sentences per field).
 
 Structure:
 {
   "overallScore": number (0-10),
-  "verdict": "One short, simple sentence summarizing if the ad is good or bad.",
+  "verdict": "One punchy sentence verdict.",
   "categories": {
-    "visual": { "score": number (0-100), "feedback": "Simple critique of the video look.", "fix": "Simple instruction to fix it." },
-    "audio": { "score": number (0-100), "feedback": "Simple critique of the sound.", "fix": "Simple instruction to fix it." },
-    "copy": { "score": number (0-100), "feedback": "Simple critique of the text/script.", "fix": "Simple instruction to fix it." }
+    "visual": { "score": number (0-100), "feedback": "...", "fix": "..." },
+    "audio": { "score": number (0-100), "feedback": "...", "fix": "..." },
+    "copy": { "score": number (0-100), "feedback": "...", "fix": "..." }
   },
   "checks": [
-    { "label": "Hook Efficiency", "status": "PASS/FAIL/WARN", "details": "What happens in the first 3 seconds?", "fix": "How to grab attention better?" },
-    { "label": "Pacing", "status": "PASS/FAIL/WARN", "details": "Is it too slow or too fast?", "fix": "How to fix the speed?" },
-    { "label": "Script Impact", "status": "PASS/FAIL/WARN", "details": "Is the message clear?", "fix": "How to say it better?" },
-    { "label": "Call to Action", "status": "PASS/FAIL/WARN", "details": "Do they tell the viewer what to do?", "fix": "How to make them click?" }
+    { "label": "Hook Efficiency", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
+    { "label": "Pacing", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
+    { "label": "Script Impact", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." },
+    { "label": "Call to Action", "status": "PASS/FAIL/WARN", "details": "...", "fix": "..." }
   ]
 }
 `;
