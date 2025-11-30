@@ -1,9 +1,10 @@
 import React, { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { useNavigate } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
 import { AnalysisData, UploadStatus, DEFAULT_ANALYSIS } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
+import { compressVideo, isFFmpegSupported } from "../utils/compression";
 
 // ==========================================
 // CONFIGURATION
@@ -40,89 +41,6 @@ Structure:
   ]
 }
 `;
-
-// ==========================================
-// VIDEO COMPRESSION
-// ==========================================
-const compressVideo = async (
-  file: File,
-  onProgress: (progress: number) => void
-): Promise<File> => {
-  if (file.size <= 15 * 1024 * 1024) {
-    onProgress(100);
-    return file;
-  }
-
-  return new Promise((resolve, reject) => {
-    const video = document.createElement("video");
-    video.muted = true;
-    video.playsInline = true;
-
-    const canvas = document.createElement("canvas");
-    const ctx = canvas.getContext("2d");
-
-    video.onloadedmetadata = async () => {
-      const maxHeight = 720;
-      const scale = video.videoHeight > maxHeight ? maxHeight / video.videoHeight : 1;
-      canvas.width = Math.floor(video.videoWidth * scale);
-      canvas.height = Math.floor(video.videoHeight * scale);
-
-      const duration = video.duration;
-      const fps = 24;
-      const totalFrames = Math.floor(duration * fps);
-
-      const stream = canvas.captureStream(fps);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: "video/webm;codecs=vp8",
-        videoBitsPerSecond: 1000000,
-      });
-
-      const chunks: Blob[] = [];
-      mediaRecorder.ondataavailable = (e) => {
-        if (e.data.size > 0) chunks.push(e.data);
-      };
-
-      mediaRecorder.onstop = () => {
-        const blob = new Blob(chunks, { type: "video/webm" });
-        const compressedFile = new File([blob], file.name.replace(/\.[^.]+$/, ".webm"), {
-          type: "video/webm",
-        });
-        onProgress(100);
-        resolve(compressedFile);
-      };
-
-      mediaRecorder.onerror = () => reject(new Error("Compression failed"));
-      mediaRecorder.start();
-
-      let currentFrame = 0;
-      const frameInterval = 1 / fps;
-
-      const processFrame = () => {
-        if (currentFrame >= totalFrames) {
-          mediaRecorder.stop();
-          return;
-        }
-        video.currentTime = currentFrame * frameInterval;
-      };
-
-      video.onseeked = () => {
-        if (ctx) ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-        currentFrame++;
-        onProgress(Math.floor((currentFrame / totalFrames) * 90));
-        if (currentFrame < totalFrames) {
-          requestAnimationFrame(processFrame);
-        } else {
-          setTimeout(() => mediaRecorder.stop(), 100);
-        }
-      };
-
-      processFrame();
-    };
-
-    video.onerror = () => reject(new Error("Failed to load video"));
-    video.src = URL.createObjectURL(file);
-  });
-};
 
 // ==========================================
 // ANALYZE VIDEO FUNCTION
@@ -196,9 +114,9 @@ const ProgressBar = ({ progress, label }: { progress: number; label: string }) =
       <span className="text-gray-400">{label}</span>
       <span className="text-[#00F2EA] font-mono">{progress}%</span>
     </div>
-    <div className="h-2 bg-[#222] rounded-full overflow-hidden">
+    <div className="h-3 bg-[#222] rounded-full overflow-hidden">
       <motion.div
-        className="h-full bg-gradient-to-r from-[#00F2EA] to-[#00F2EA]/70"
+        className="h-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]"
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.3 }}
@@ -234,6 +152,8 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
     return () => URL.revokeObjectURL(video.src);
   }, [file]);
 
+  const needsCompression = file.size > 15 * 1024 * 1024;
+
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-4 border border-[#333]">
       <div className="flex items-center gap-4">
@@ -253,7 +173,15 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium truncate">{file.name}</p>
-          <p className="text-gray-500 text-sm">{(file.size / 1024 / 1024).toFixed(1)} MB</p>
+          <p className="text-gray-500 text-sm">
+            {(file.size / 1024 / 1024).toFixed(1)} MB
+            {needsCompression && (
+              <span className="text-yellow-500 ml-2">
+                <i className="fa-solid fa-compress mr-1"></i>
+                Will be compressed
+              </span>
+            )}
+          </p>
         </div>
         <button onClick={onRemove} className="p-2 text-gray-500 hover:text-red-500 transition-colors">
           <i className="fa-solid fa-trash"></i>
@@ -273,21 +201,19 @@ const NewAudit = () => {
   const [file, setFile] = useState<File | null>(null);
   const [status, setStatus] = useState<UploadStatus>("IDLE");
   const [progress, setProgress] = useState(0);
+  const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
+  const [compressionStats, setCompressionStats] = useState<{
+    original: number;
+    compressed: number;
+  } | null>(null);
 
-  const STAGE_LABELS: Record<UploadStatus, string> = {
-    IDLE: "",
-    COMPRESSING: "Optimizing video...",
-    UPLOADING: "Uploading to server...",
-    ANALYZING: "AI analyzing your ad...",
-    SUCCESS: "Complete!",
-    ERROR: "Error",
-  };
+  const ffmpegSupported = isFFmpegSupported();
 
   const runAnalysis = async () => {
     if (!file || !user) return;
 
-    const MAX_SIZE_MB = 100;
+    const MAX_SIZE_MB = 500; // Allow larger files since we compress
     if (file.size > MAX_SIZE_MB * 1024 * 1024) {
       setErrorMessage(`File too large. Maximum is ${MAX_SIZE_MB}MB.`);
       setStatus("ERROR");
@@ -301,43 +227,57 @@ const NewAudit = () => {
     }
 
     try {
-      // Compress
+      // Stage 1: Compress
       setStatus("COMPRESSING");
       setProgress(0);
+      setStatusMessage("Preparing...");
 
+      const originalSize = file.size;
       let fileToUpload = file;
-      if (file.size > 15 * 1024 * 1024) {
-        try {
-          fileToUpload = await compressVideo(file, setProgress);
-        } catch {
-          fileToUpload = file;
-        }
-      }
-      setProgress(100);
 
-      // Upload & Analyze
+      if (file.size > 15 * 1024 * 1024) {
+        fileToUpload = await compressVideo(file, (p, msg) => {
+          setProgress(p);
+          setStatusMessage(msg);
+        });
+        
+        setCompressionStats({
+          original: originalSize / 1024 / 1024,
+          compressed: fileToUpload.size / 1024 / 1024
+        });
+      }
+
+      // Stage 2: Upload
       setStatus("UPLOADING");
       setProgress(0);
+      setStatusMessage("Uploading to server...");
 
+      let uploadComplete = false;
       const analysisPromise = analyzeVideo(fileToUpload, user.email || "", (p) => {
-        setProgress(p);
-        if (p === 100) {
-          setStatus("ANALYZING");
-          setProgress(0);
+        if (!uploadComplete) {
+          setProgress(p);
+          if (p === 100) {
+            uploadComplete = true;
+            setStatus("ANALYZING");
+            setProgress(0);
+            setStatusMessage("AI analyzing your ad...");
+          }
         }
       });
 
+      // Stage 3: Analyze with simulated progress
       setStatus("ANALYZING");
       let analysisProgress = 0;
       const progressInterval = setInterval(() => {
-        analysisProgress += Math.random() * 15;
+        analysisProgress += Math.random() * 12;
         if (analysisProgress > 90) analysisProgress = 90;
         setProgress(Math.floor(analysisProgress));
-      }, 1000);
+      }, 800);
 
       const data = await analysisPromise;
       clearInterval(progressInterval);
       setProgress(100);
+      setStatusMessage("Complete!");
 
       // Save to database
       if (supabase) {
@@ -357,7 +297,6 @@ const NewAudit = () => {
 
         if (error) throw error;
 
-        // Refresh stats and redirect to result
         refreshStats();
         navigate(`/audit/${insertedAudit.id}`);
       }
@@ -372,7 +311,22 @@ const NewAudit = () => {
     setFile(null);
     setStatus("IDLE");
     setProgress(0);
+    setStatusMessage("");
     setErrorMessage("");
+    setCompressionStats(null);
+  };
+
+  const getStatusIcon = () => {
+    switch (status) {
+      case "COMPRESSING":
+        return "fa-solid fa-bolt";
+      case "UPLOADING":
+        return "fa-solid fa-cloud-arrow-up";
+      case "ANALYZING":
+        return "fa-solid fa-brain";
+      default:
+        return "fa-solid fa-cog";
+    }
   };
 
   return (
@@ -381,7 +335,15 @@ const NewAudit = () => {
         {/* Header */}
         <div className="mb-8">
           <h1 className="text-2xl font-bold text-white mb-2">New Audit</h1>
-          <p className="text-gray-500">Upload a video ad to get AI-powered feedback</p>
+          <p className="text-gray-500">
+            Upload a video ad to get AI-powered feedback
+            {ffmpegSupported && (
+              <span className="ml-2 text-green-500 text-xs">
+                <i className="fa-solid fa-bolt mr-1"></i>
+                Fast compression enabled
+              </span>
+            )}
+          </p>
         </div>
 
         {/* Main Card */}
@@ -405,7 +367,10 @@ const NewAudit = () => {
                     <i className="fa-solid fa-cloud-arrow-up text-3xl text-[#00F2EA]"></i>
                   </div>
                   <h4 className="text-white text-xl font-bold mb-2">Upload Video Ad</h4>
-                  <p className="text-gray-500 text-sm">MP4, MOV, WebM • Max 100MB</p>
+                  <p className="text-gray-500 text-sm">MP4, MOV, WebM • Up to 500MB</p>
+                  <p className="text-gray-600 text-xs mt-2">
+                    Large files will be automatically compressed
+                  </p>
                 </div>
               ) : (
                 <VideoPreview file={file} onRemove={() => setFile(null)} />
@@ -428,22 +393,43 @@ const NewAudit = () => {
               <div className="relative w-24 h-24 mx-auto mb-8">
                 <div className="absolute inset-0 bg-[#00F2EA] rounded-full opacity-20 animate-ping"></div>
                 <div className="relative w-24 h-24 bg-[#161616] border-2 border-[#00F2EA] rounded-full flex items-center justify-center">
-                  {status === "COMPRESSING" && <i className="fa-solid fa-compress text-3xl text-[#00F2EA]"></i>}
-                  {status === "UPLOADING" && <i className="fa-solid fa-cloud-arrow-up text-3xl text-[#00F2EA]"></i>}
-                  {status === "ANALYZING" && <i className="fa-solid fa-brain text-3xl text-[#00F2EA] animate-pulse"></i>}
+                  <i className={`${getStatusIcon()} text-3xl text-[#00F2EA] ${status === "ANALYZING" ? "animate-pulse" : ""}`}></i>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-4">{STAGE_LABELS[status]}</h2>
+              <h2 className="text-2xl font-bold text-white mb-2">
+                {status === "COMPRESSING" && "Compressing Video"}
+                {status === "UPLOADING" && "Uploading"}
+                {status === "ANALYZING" && "Analyzing"}
+              </h2>
+              
+              <p className="text-gray-400 mb-6">{statusMessage}</p>
 
               <ProgressBar
                 progress={progress}
-                label={status === "COMPRESSING" ? "Optimizing" : status === "UPLOADING" ? "Uploading" : "Analyzing"}
+                label={
+                  status === "COMPRESSING" ? "Compression Progress" :
+                  status === "UPLOADING" ? "Upload Progress" : 
+                  "Analysis Progress"
+                }
               />
 
-              <p className="text-sm text-gray-500 mt-6">
-                {status === "ANALYZING" ? "Our AI is reviewing every frame..." : "Please wait..."}
-              </p>
+              {status === "COMPRESSING" && (
+                <p className="text-sm text-gray-500 mt-6">
+                  <i className="fa-solid fa-bolt text-yellow-500 mr-2"></i>
+                  {ffmpegSupported 
+                    ? "Using hardware-accelerated compression"
+                    : "Using browser compression"}
+                </p>
+              )}
+
+              {compressionStats && status !== "COMPRESSING" && (
+                <p className="text-sm text-green-500 mt-4">
+                  <i className="fa-solid fa-check mr-2"></i>
+                  Compressed: {compressionStats.original.toFixed(1)}MB → {compressionStats.compressed.toFixed(1)}MB
+                  ({((1 - compressionStats.compressed / compressionStats.original) * 100).toFixed(0)}% smaller)
+                </p>
+              )}
             </div>
           )}
 
@@ -466,11 +452,16 @@ const NewAudit = () => {
         </div>
 
         {/* Tips */}
-        <div className="mt-6 text-center text-gray-500 text-sm">
-          <p>
-            <i className="fa-solid fa-lightbulb text-yellow-500 mr-2"></i>
-            Tip: Videos under 20MB analyze much faster
-          </p>
+        <div className="mt-6 bg-[#111] border border-[#222] rounded-xl p-4">
+          <h4 className="text-white font-medium mb-2 flex items-center gap-2">
+            <i className="fa-solid fa-lightbulb text-yellow-500"></i>
+            Tips for faster analysis
+          </h4>
+          <ul className="text-gray-500 text-sm space-y-1">
+            <li>• Videos under 15MB skip compression entirely</li>
+            <li>• MP4 format processes fastest</li>
+            <li>• 720p resolution is optimal for analysis</li>
+          </ul>
         </div>
       </div>
     </DashboardLayout>
