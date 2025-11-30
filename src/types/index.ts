@@ -15,6 +15,12 @@ export interface CheckItem {
   fix?: string;
 }
 
+export interface ScriptRewrite {
+  original: string;
+  improved: string;
+  changes: string[];
+}
+
 export interface AnalysisData {
   overallScore: number;
   verdict: string;
@@ -24,6 +30,7 @@ export interface AnalysisData {
     copy: AuditCategory;
   };
   checks: CheckItem[];
+  scriptRewrite?: ScriptRewrite;
 }
 
 export interface AuditRecord {
@@ -39,6 +46,7 @@ export interface AuditRecord {
     copy: AuditCategory;
   };
   checks: CheckItem[];
+  script_rewrite?: ScriptRewrite;
   created_at: string;
 }
 
@@ -54,7 +62,8 @@ export const DEFAULT_ANALYSIS: AnalysisData = {
     audio: { score: 0, feedback: "N/A", fix: "" },
     copy: { score: 0, feedback: "N/A", fix: "" }
   },
-  checks: []
+  checks: [],
+  scriptRewrite: undefined
 };
 
 // ==========================================
