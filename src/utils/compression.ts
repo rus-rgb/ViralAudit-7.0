@@ -331,11 +331,8 @@ function getExtension(filename: string): string {
 export const isFFmpegSupported = (): boolean => {
   // Check for SharedArrayBuffer support (required for FFmpeg.wasm)
   try {
-    const supported = typeof SharedArrayBuffer !== 'undefined';
-    console.log(`🔍 SharedArrayBuffer supported: ${supported}`);
-    return supported;
+    return typeof SharedArrayBuffer !== 'undefined';
   } catch {
-    console.log('🔍 SharedArrayBuffer: NOT supported');
     return false;
   }
 };
