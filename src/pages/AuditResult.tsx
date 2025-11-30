@@ -4,6 +4,7 @@ import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
 import { AuditRecord } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
+import { generateAuditPDF } from "../utils/pdfExport";
 
 // ==========================================
 // SCORE CIRCLE COMPONENT
@@ -153,6 +154,13 @@ const AuditResult = () => {
             <p className="text-gray-500 text-sm">{formatDate(audit.created_at)}</p>
           </div>
           <div className="flex gap-3">
+            <button
+              onClick={() => generateAuditPDF(audit)}
+              className="bg-[#1a1a1a] border border-[#333] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2"
+            >
+              <i className="fa-solid fa-file-pdf"></i>
+              Export PDF
+            </button>
             <Link
               to="/audit/new"
               className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-5 py-2.5 rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center gap-2"
@@ -255,6 +263,61 @@ const AuditResult = () => {
             ))}
           </div>
         </div>
+
+        {/* Script Rewrite Section */}
+        {audit.script_rewrite && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-[#111] border border-[#222] rounded-2xl overflow-hidden mt-6"
+          >
+            <div className="p-6 border-b border-[#222]">
+              <h2 className="text-lg font-bold text-white flex items-center gap-2">
+                <i className="fa-solid fa-pen-fancy text-purple-400"></i>
+                Script Rewrite Suggestion
+              </h2>
+            </div>
+            <div className="p-6 space-y-6">
+              {/* Original Script */}
+              <div>
+                <h3 className="text-sm font-bold text-gray-400 uppercase tracking-wider mb-3">
+                  Original Script
+                </h3>
+                <div className="bg-[#0a0a0a] border border-[#333] rounded-lg p-4">
+                  <p className="text-gray-300 text-sm whitespace-pre-wrap">{audit.script_rewrite.original}</p>
+                </div>
+              </div>
+
+              {/* Improved Script */}
+              <div>
+                <h3 className="text-sm font-bold text-green-400 uppercase tracking-wider mb-3 flex items-center gap-2">
+                  <i className="fa-solid fa-arrow-up"></i>
+                  Improved Script
+                </h3>
+                <div className="bg-green-500/5 border border-green-500/20 rounded-lg p-4">
+                  <p className="text-white text-sm whitespace-pre-wrap">{audit.script_rewrite.improved}</p>
+                </div>
+              </div>
+
+              {/* Changes Made */}
+              {audit.script_rewrite.changes && audit.script_rewrite.changes.length > 0 && (
+                <div>
+                  <h3 className="text-sm font-bold text-[#00F2EA] uppercase tracking-wider mb-3">
+                    Key Changes
+                  </h3>
+                  <ul className="space-y-2">
+                    {audit.script_rewrite.changes.map((change, idx) => (
+                      <li key={idx} className="flex items-start gap-2 text-gray-400 text-sm">
+                        <i className="fa-solid fa-check text-[#00F2EA] mt-1"></i>
+                        <span>{change}</span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              )}
+            </div>
+          </motion.div>
+        )}
 
         {/* Bottom Actions */}
         <div className="mt-8 flex flex-col sm:flex-row gap-4 justify-center">
