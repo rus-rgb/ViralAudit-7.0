@@ -2,9 +2,11 @@ import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
+import { useSubscription } from "../context/SubscriptionContext";
 import { AuditRecord } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
 import { generateAuditPDF } from "../utils/pdfExport";
+import { openCheckout } from "../utils/lemonsqueezy";
 
 // ==========================================
 // SCORE CIRCLE COMPONENT
@@ -64,6 +66,7 @@ const StatusChip = ({ status }: { status: string }) => {
 const AuditResult = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
+  const subscription = useSubscription();
   const navigate = useNavigate();
   
   const [audit, setAudit] = useState<AuditRecord | null>(null);
@@ -154,13 +157,25 @@ const AuditResult = () => {
             <p className="text-gray-500 text-sm">{formatDate(audit.created_at)}</p>
           </div>
           <div className="flex gap-3">
-            <button
-              onClick={() => generateAuditPDF(audit)}
-              className="bg-[#1a1a1a] border border-[#333] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2"
-            >
-              <i className="fa-solid fa-file-pdf"></i>
-              Export PDF
-            </button>
+            {subscription.canExportPdf ? (
+              <button
+                onClick={() => generateAuditPDF(audit)}
+                className="bg-[#1a1a1a] border border-[#333] text-white px-5 py-2.5 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2"
+              >
+                <i className="fa-solid fa-file-pdf"></i>
+                Export PDF
+              </button>
+            ) : (
+              <button
+                onClick={() => user && openCheckout('solo', user.id, user.email || '')}
+                className="bg-[#1a1a1a] border border-[#333] text-gray-400 px-5 py-2.5 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2 group"
+              >
+                <i className="fa-solid fa-lock group-hover:hidden"></i>
+                <i className="fa-solid fa-unlock hidden group-hover:inline"></i>
+                <span>Export PDF</span>
+                <span className="text-xs bg-[#00F2EA]/20 text-[#00F2EA] px-2 py-0.5 rounded-full">PRO</span>
+              </button>
+            )}
             <Link
               to="/audit/new"
               className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-5 py-2.5 rounded-lg font-bold hover:opacity-90 transition-opacity flex items-center gap-2"
