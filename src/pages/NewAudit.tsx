@@ -152,7 +152,7 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
     return () => URL.revokeObjectURL(video.src);
   }, [file]);
 
-  const needsCompression = file.size > 15 * 1024 * 1024;
+  const needsCompression = file.size > 20 * 1024 * 1024;
 
   return (
     <div className="bg-[#1a1a1a] rounded-xl p-4 border border-[#333]">
@@ -237,7 +237,7 @@ const NewAudit = () => {
       let fileToUpload = file;
       let result: CompressionResult | null = null;
 
-      if (file.size > 15 * 1024 * 1024) {
+      if (file.size > 20 * 1024 * 1024) {
         result = await compressVideo(file, (p, msg) => {
           setProgress(p);
           setStatusMessage(msg);
@@ -500,7 +500,7 @@ const NewAudit = () => {
             Tips for faster analysis
           </h4>
           <ul className="text-gray-500 text-sm space-y-1">
-            <li>• Videos under 15MB skip compression entirely</li>
+            <li>• Videos under 20MB skip compression entirely</li>
             <li>• MP4 format processes fastest</li>
             <li>• 720p resolution is optimal for analysis</li>
             <li>• {ffmpegSupported ? '✅ FFmpeg.wasm is enabled for fast compression' : '⚠️ FFmpeg unavailable, using slower canvas mode'}</li>
