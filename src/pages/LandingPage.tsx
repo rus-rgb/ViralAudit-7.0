@@ -2,6 +2,7 @@ import React from "react";
 import { motion } from "framer-motion";
 import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
+import { openCheckout } from "../utils/lemonsqueezy";
 
 // ==========================================
 // BACKGROUND
@@ -127,7 +128,20 @@ const Pricing = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
-  const handleCTA = (plan?: string) => {
+  // Handle subscription button click
+  const handleSubscribe = (plan: 'solo' | 'pro' | 'agency') => {
+    if (!user) {
+      // Not logged in - send to signup first, then they can subscribe
+      navigate(`/auth?mode=signup&redirect=/billing`);
+      return;
+    }
+    
+    // User is logged in - open Lemon Squeezy checkout overlay
+    openCheckout(plan, user.id, user.email || '');
+  };
+
+  // Handle free trial (just go to signup or new audit)
+  const handleFreeTrial = () => {
     if (user) {
       navigate('/audit/new');
     } else {
@@ -143,7 +157,8 @@ const Pricing = () => {
     features, 
     isPopular = false,
     buttonText = 'Get Started',
-    buttonStyle = 'outline'
+    buttonStyle = 'outline',
+    planKey
   }: {
     name: string;
     price: string;
@@ -153,6 +168,7 @@ const Pricing = () => {
     isPopular?: boolean;
     buttonText?: string;
     buttonStyle?: 'outline' | 'solid';
+    planKey: 'solo' | 'pro' | 'agency';
   }) => (
     <div className={`p-8 rounded-2xl text-left relative ${
       isPopular 
@@ -170,7 +186,7 @@ const Pricing = () => {
         {price}<span className="text-sm text-gray-500 font-normal">{period}</span>
       </p>
       <button 
-        onClick={() => handleCTA(name)}
+        onClick={() => handleSubscribe(planKey)}
         className={`w-full py-3 rounded-lg mb-6 font-bold transition-all ${
           buttonStyle === 'solid'
             ? 'bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black hover:opacity-90'
@@ -212,6 +228,7 @@ const Pricing = () => {
             price="$49"
             description="For freelancers & small brands"
             buttonText="Start Free Trial"
+            planKey="solo"
             features={[
               "30 audits per month",
               "Full creative analysis",
@@ -227,6 +244,7 @@ const Pricing = () => {
             isPopular={true}
             buttonText="Start Free Trial"
             buttonStyle="solid"
+            planKey="pro"
             features={[
               "100 audits per month",
               "Everything in Solo, plus:",
@@ -241,6 +259,7 @@ const Pricing = () => {
             price="$199"
             description="For agencies & heavy users"
             buttonText="Start Free Trial"
+            planKey="agency"
             features={[
               "Unlimited audits",
               "Everything in Pro, plus:",
@@ -308,7 +327,7 @@ const Pricing = () => {
             ViralAudit pays for itself many times over.
           </p>
           <button 
-            onClick={() => handleCTA()}
+            onClick={handleFreeTrial}
             className="bg-white text-black px-8 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors"
           >
             Start Your Free Trial
