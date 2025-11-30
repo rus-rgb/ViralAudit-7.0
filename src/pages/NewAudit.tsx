@@ -20,6 +20,7 @@ CRITICAL INSTRUCTIONS:
 2. **USE TIMESTAMPS:** You MUST reference specific moments (e.g., "At 0:03, the pacing dies.").
 3. **NO GENERIC ADVICE:** Do not say "make it better." Say "Cut the first 2 seconds" or "Change the font."
 4. **8th GRADE LEVEL:** Use short, punchy sentences. No marketing jargon.
+5. **SCRIPT REWRITE:** Provide an improved version of the ad script/voiceover if applicable.
 
 OUTPUT FORMAT:
 Return ONLY a valid JSON object. No markdown.
@@ -38,7 +39,12 @@ Structure:
     { "label": "Pacing & Retention", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." },
     { "label": "Storytelling", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." },
     { "label": "Call to Action", "status": "PASS/FAIL/WARN", "details": "Analysis.", "fix": "Fix." }
-  ]
+  ],
+  "scriptRewrite": {
+    "original": "Transcribe the original script/voiceover from the video. If no voiceover, describe what text appears on screen.",
+    "improved": "Write an improved version of the script that would perform better. Make it punchy, benefit-focused, and include a strong hook.",
+    "changes": ["List 3-5 specific changes you made and why they improve the ad."]
+  }
 }
 `;
 
@@ -102,6 +108,7 @@ const analyzeVideo = async (
       copy: { ...DEFAULT_ANALYSIS.categories.copy, ...parsed.categories?.copy },
     },
     checks: Array.isArray(parsed.checks) ? parsed.checks : [],
+    scriptRewrite: parsed.scriptRewrite || undefined,
   };
 };
 
@@ -300,6 +307,7 @@ const NewAudit = () => {
             verdict: data.verdict,
             categories: data.categories,
             checks: data.checks,
+            script_rewrite: data.scriptRewrite || null,
           })
           .select()
           .single();
