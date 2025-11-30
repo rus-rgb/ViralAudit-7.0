@@ -1,10 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { motion } from "framer-motion";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
+import { useSubscription } from "../context/SubscriptionContext";
 import { AnalysisData, UploadStatus, DEFAULT_ANALYSIS } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
 import { compressVideo, isFFmpegSupported, CompressionResult } from "../utils/compression";
+import { openCheckout } from "../utils/lemonsqueezy";
 
 // ==========================================
 // CONFIGURATION
@@ -263,6 +265,7 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
 // ==========================================
 const NewAudit = () => {
   const { user, refreshStats } = useAuth();
+  const subscription = useSubscription();
   const navigate = useNavigate();
 
   const [file, setFile] = useState<File | null>(null);
@@ -273,6 +276,9 @@ const NewAudit = () => {
   const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
 
   const ffmpegSupported = isFFmpegSupported();
+
+  // Check if user has audits remaining
+  const hasAuditsRemaining = subscription.auditsRemaining > 0;
 
   // Log FFmpeg support on mount
   useEffect(() => {
@@ -422,23 +428,81 @@ const NewAudit = () => {
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-3xl mx-auto">
+        {/* Audit Limit Warning */}
+        {!hasAuditsRemaining && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="mb-6 p-6 bg-red-500/10 border border-red-500/20 rounded-2xl"
+          >
+            <div className="flex items-start gap-4">
+              <div className="w-12 h-12 bg-red-500/20 rounded-full flex items-center justify-center flex-shrink-0">
+                <i className="fa-solid fa-lock text-red-400 text-xl"></i>
+              </div>
+              <div className="flex-1">
+                <h3 className="text-lg font-bold text-white mb-1">
+                  You've used all your audits this month
+                </h3>
+                <p className="text-gray-400 text-sm mb-4">
+                  {subscription.plan === 'free' 
+                    ? `Your free plan includes ${subscription.auditsPerMonth} audits per month.`
+                    : `Your ${subscription.plan} plan includes ${subscription.auditsPerMonth} audits per month.`
+                  }
+                  {' '}Upgrade to get more audits and unlock premium features.
+                </p>
+                <div className="flex gap-3">
+                  <button
+                    onClick={() => user && openCheckout('pro', user.id, user.email || '')}
+                    className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-5 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                  >
+                    Upgrade to Pro
+                  </button>
+                  <Link
+                    to="/billing"
+                    className="border border-white/20 text-white px-5 py-2 rounded-lg font-medium hover:bg-white/5 transition-colors"
+                  >
+                    View Plans
+                  </Link>
+                </div>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">New Audit</h1>
-          <p className="text-gray-500">
-            Upload a video ad to get AI-powered feedback
-            {ffmpegSupported ? (
-              <span className="ml-2 text-green-500 text-xs">
-                <i className="fa-solid fa-bolt mr-1"></i>
-                FFmpeg.wasm ready
-              </span>
-            ) : (
-              <span className="ml-2 text-yellow-500 text-xs">
-                <i className="fa-solid fa-palette mr-1"></i>
-                Canvas mode (SharedArrayBuffer unavailable)
-              </span>
-            )}
-          </p>
+          <div className="flex justify-between items-start">
+            <div>
+              <h1 className="text-2xl font-bold text-white mb-2">New Audit</h1>
+              <p className="text-gray-500">
+                Upload a video ad to get AI-powered feedback
+                {ffmpegSupported ? (
+                  <span className="ml-2 text-green-500 text-xs">
+                    <i className="fa-solid fa-bolt mr-1"></i>
+                    FFmpeg.wasm ready
+                  </span>
+                ) : (
+                  <span className="ml-2 text-yellow-500 text-xs">
+                    <i className="fa-solid fa-palette mr-1"></i>
+                    Canvas mode (SharedArrayBuffer unavailable)
+                  </span>
+                )}
+              </p>
+            </div>
+            {/* Audits remaining badge */}
+            <div className={`px-3 py-1 rounded-full text-sm font-medium ${
+              subscription.auditsRemaining <= 0 
+                ? 'bg-red-500/10 text-red-400' 
+                : subscription.auditsRemaining <= 3 
+                  ? 'bg-yellow-500/10 text-yellow-400'
+                  : 'bg-green-500/10 text-green-400'
+            }`}>
+              {subscription.auditsPerMonth === 999999 
+                ? '∞ audits' 
+                : `${subscription.auditsRemaining} audits left`
+              }
+            </div>
+          </div>
         </div>
 
         {/* Main Card */}
@@ -473,11 +537,20 @@ const NewAudit = () => {
 
               <button
                 onClick={runAnalysis}
-                disabled={!file}
+                disabled={!file || !hasAuditsRemaining}
                 className="w-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black font-bold py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
-                <i className="fa-solid fa-wand-magic-sparkles"></i>
-                Run Deep Audit
+                {hasAuditsRemaining ? (
+                  <>
+                    <i className="fa-solid fa-wand-magic-sparkles"></i>
+                    Run Deep Audit
+                  </>
+                ) : (
+                  <>
+                    <i className="fa-solid fa-lock"></i>
+                    Upgrade to Continue
+                  </>
+                )}
               </button>
             </div>
           )}
