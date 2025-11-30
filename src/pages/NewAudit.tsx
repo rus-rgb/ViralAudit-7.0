@@ -4,7 +4,7 @@ import { useNavigate } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
 import { AnalysisData, UploadStatus, DEFAULT_ANALYSIS } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
-import { compressVideo, isFFmpegSupported } from "../utils/compression";
+import { compressVideo, isFFmpegSupported, CompressionResult } from "../utils/compression";
 
 // ==========================================
 // CONFIGURATION
@@ -203,12 +203,14 @@ const NewAudit = () => {
   const [progress, setProgress] = useState(0);
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
-  const [compressionStats, setCompressionStats] = useState<{
-    original: number;
-    compressed: number;
-  } | null>(null);
+  const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
 
   const ffmpegSupported = isFFmpegSupported();
+
+  // Log FFmpeg support on mount
+  useEffect(() => {
+    console.log(`🔧 FFmpeg.wasm supported: ${ffmpegSupported}`);
+  }, []);
 
   const runAnalysis = async () => {
     if (!file || !user) return;
@@ -232,18 +234,25 @@ const NewAudit = () => {
       setProgress(0);
       setStatusMessage("Preparing...");
 
-      const originalSize = file.size;
       let fileToUpload = file;
+      let result: CompressionResult | null = null;
 
       if (file.size > 15 * 1024 * 1024) {
-        fileToUpload = await compressVideo(file, (p, msg) => {
+        result = await compressVideo(file, (p, msg) => {
           setProgress(p);
           setStatusMessage(msg);
         });
         
-        setCompressionStats({
-          original: originalSize / 1024 / 1024,
-          compressed: fileToUpload.size / 1024 / 1024
+        fileToUpload = result.file;
+        setCompressionResult(result);
+      } else {
+        // File is small, skip compression
+        setCompressionResult({
+          file: file,
+          method: 'skipped',
+          originalSize: file.size,
+          compressedSize: file.size,
+          duration: 0
         });
       }
 
@@ -313,7 +322,7 @@ const NewAudit = () => {
     setProgress(0);
     setStatusMessage("");
     setErrorMessage("");
-    setCompressionStats(null);
+    setCompressionResult(null);
   };
 
   const getStatusIcon = () => {
@@ -329,6 +338,19 @@ const NewAudit = () => {
     }
   };
 
+  const getMethodBadge = (method: string) => {
+    switch (method) {
+      case 'ffmpeg':
+        return { text: 'FFmpeg.wasm', color: 'text-green-400 bg-green-400/10', icon: 'fa-solid fa-bolt' };
+      case 'canvas':
+        return { text: 'Canvas Fallback', color: 'text-yellow-400 bg-yellow-400/10', icon: 'fa-solid fa-palette' };
+      case 'skipped':
+        return { text: 'No Compression', color: 'text-blue-400 bg-blue-400/10', icon: 'fa-solid fa-forward' };
+      default:
+        return { text: 'Unknown', color: 'text-gray-400 bg-gray-400/10', icon: 'fa-solid fa-question' };
+    }
+  };
+
   return (
     <DashboardLayout>
       <div className="p-6 lg:p-8 max-w-3xl mx-auto">
@@ -337,10 +359,15 @@ const NewAudit = () => {
           <h1 className="text-2xl font-bold text-white mb-2">New Audit</h1>
           <p className="text-gray-500">
             Upload a video ad to get AI-powered feedback
-            {ffmpegSupported && (
+            {ffmpegSupported ? (
               <span className="ml-2 text-green-500 text-xs">
                 <i className="fa-solid fa-bolt mr-1"></i>
-                Fast compression enabled
+                FFmpeg.wasm ready
+              </span>
+            ) : (
+              <span className="ml-2 text-yellow-500 text-xs">
+                <i className="fa-solid fa-palette mr-1"></i>
+                Canvas mode (SharedArrayBuffer unavailable)
               </span>
             )}
           </p>
@@ -416,19 +443,34 @@ const NewAudit = () => {
 
               {status === "COMPRESSING" && (
                 <p className="text-sm text-gray-500 mt-6">
-                  <i className="fa-solid fa-bolt text-yellow-500 mr-2"></i>
+                  <i className={`${ffmpegSupported ? 'fa-solid fa-bolt text-green-500' : 'fa-solid fa-palette text-yellow-500'} mr-2`}></i>
                   {ffmpegSupported 
-                    ? "Using hardware-accelerated compression"
-                    : "Using browser compression"}
+                    ? "Using FFmpeg.wasm (fast)"
+                    : "Using Canvas fallback (slower)"}
                 </p>
               )}
 
-              {compressionStats && status !== "COMPRESSING" && (
-                <p className="text-sm text-green-500 mt-4">
-                  <i className="fa-solid fa-check mr-2"></i>
-                  Compressed: {compressionStats.original.toFixed(1)}MB → {compressionStats.compressed.toFixed(1)}MB
-                  ({((1 - compressionStats.compressed / compressionStats.original) * 100).toFixed(0)}% smaller)
-                </p>
+              {compressionResult && status !== "COMPRESSING" && compressionResult.method !== 'skipped' && (
+                <div className="mt-4 p-4 bg-[#1a1a1a] rounded-lg inline-block">
+                  <div className="flex items-center gap-3 mb-2">
+                    {(() => {
+                      const badge = getMethodBadge(compressionResult.method);
+                      return (
+                        <span className={`px-2 py-1 rounded text-xs font-bold ${badge.color}`}>
+                          <i className={`${badge.icon} mr-1`}></i>
+                          {badge.text}
+                        </span>
+                      );
+                    })()}
+                  </div>
+                  <p className="text-sm text-green-400">
+                    <i className="fa-solid fa-check mr-2"></i>
+                    {(compressionResult.originalSize / 1024 / 1024).toFixed(1)}MB → {(compressionResult.compressedSize / 1024 / 1024).toFixed(1)}MB
+                    <span className="text-gray-500 ml-2">
+                      ({((1 - compressionResult.compressedSize / compressionResult.originalSize) * 100).toFixed(0)}% smaller in {compressionResult.duration.toFixed(1)}s)
+                    </span>
+                  </p>
+                </div>
               )}
             </div>
           )}
@@ -461,6 +503,7 @@ const NewAudit = () => {
             <li>• Videos under 15MB skip compression entirely</li>
             <li>• MP4 format processes fastest</li>
             <li>• 720p resolution is optimal for analysis</li>
+            <li>• {ffmpegSupported ? '✅ FFmpeg.wasm is enabled for fast compression' : '⚠️ FFmpeg unavailable, using slower canvas mode'}</li>
           </ul>
         </div>
       </div>
