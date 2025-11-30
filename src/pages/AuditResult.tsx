@@ -190,13 +190,47 @@ const AuditResult = () => {
           </div>
         </motion.div>
 
+        {/* Priority Fixes - Quick Wins */}
+        {audit.checks && audit.checks.filter(c => c.status === 'FAIL').length > 0 && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            className="bg-red-500/5 border border-red-500/20 rounded-2xl p-6 mb-6"
+          >
+            <h3 className="text-sm font-bold text-red-400 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <i className="fa-solid fa-fire"></i>
+              Priority Fixes (Do These First)
+            </h3>
+            <div className="space-y-3">
+              {audit.checks.filter(c => c.status === 'FAIL').slice(0, 3).map((check, idx) => (
+                <div key={idx} className="flex items-start gap-3">
+                  <span className="bg-red-500 text-white text-xs font-bold w-6 h-6 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                    {idx + 1}
+                  </span>
+                  <div>
+                    <span className="text-white font-semibold text-sm">{check.label}:</span>
+                    <span className="text-gray-400 text-sm ml-1">{check.fix}</span>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )}
+
         {/* Category Cards */}
         <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
           {[
             { title: "Visuals", icon: "fa-eye", data: audit.categories.visual },
             { title: "Audio", icon: "fa-volume-high", data: audit.categories.audio },
             { title: "Copy", icon: "fa-pen-nib", data: audit.categories.copy },
-          ].map((pillar, idx) => (
+          ].map((pillar, idx) => {
+            const score = pillar.data?.score || 0;
+            let scoreColor = "text-red-400";
+            let scoreBg = "bg-red-500/10";
+            if (score >= 50) { scoreColor = "text-yellow-400"; scoreBg = "bg-yellow-500/10"; }
+            if (score >= 70) { scoreColor = "text-green-400"; scoreBg = "bg-green-500/10"; }
+            
+            return (
             <motion.div
               key={pillar.title}
               initial={{ opacity: 0, y: 20 }}
@@ -209,25 +243,24 @@ const AuditResult = () => {
                   <i className={`fa-solid ${pillar.icon} text-gray-500`}></i>
                   {pillar.title}
                 </div>
-                <span
-                  className={`font-mono font-bold ${
-                    (pillar.data?.score || 0) > 70 ? "text-green-400" : "text-yellow-400"
-                  }`}
-                >
-                  {pillar.data?.score || 0}%
+                <span className={`font-mono font-bold px-3 py-1 rounded-full ${scoreColor} ${scoreBg}`}>
+                  {score}%
                 </span>
               </div>
-              <p className="text-sm text-gray-400 mb-4 flex-grow leading-relaxed">
+              <p className="text-sm text-gray-300 mb-4 flex-grow leading-relaxed">
                 {pillar.data?.feedback || "No feedback."}
               </p>
               {pillar.data?.fix && (
-                <div className="pt-3 border-t border-[#222]">
-                  <p className="text-xs text-[#00F2EA] font-bold uppercase mb-1">Fix:</p>
-                  <p className="text-sm text-white italic">{pillar.data.fix}</p>
+                <div className="bg-[#00F2EA]/5 border border-[#00F2EA]/20 rounded-lg p-4 mt-auto">
+                  <p className="text-xs text-[#00F2EA] font-bold uppercase mb-2 flex items-center gap-1">
+                    <i className="fa-solid fa-wrench"></i>
+                    How to Fix
+                  </p>
+                  <p className="text-sm text-gray-300 leading-relaxed">{pillar.data.fix}</p>
                 </div>
               )}
             </motion.div>
-          ))}
+          )})}
         </div>
 
         {/* Diagnostic Checks */}
@@ -248,16 +281,25 @@ const AuditResult = () => {
                 className="p-6"
               >
                 <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 mb-3">
-                  <span className="text-sm font-bold text-white uppercase tracking-wider">
+                  <span className="text-sm font-bold text-white uppercase tracking-wider flex items-center gap-2">
+                    {check.status === 'PASS' && <i className="fa-solid fa-circle-check text-green-500"></i>}
+                    {check.status === 'WARN' && <i className="fa-solid fa-triangle-exclamation text-yellow-500"></i>}
+                    {check.status === 'FAIL' && <i className="fa-solid fa-circle-xmark text-red-500"></i>}
                     {check.label}
                   </span>
                   <StatusChip status={check.status} />
                 </div>
-                <p className="text-gray-400 text-sm mb-2">{check.details}</p>
+                <p className="text-gray-300 text-sm mb-4 leading-relaxed">{check.details}</p>
                 {check.fix && (
-                  <p className="text-[#00F2EA] text-sm">
-                    <span className="font-bold">Fix:</span> {check.fix}
-                  </p>
+                  <div className="bg-[#00F2EA]/5 border border-[#00F2EA]/20 rounded-lg p-4">
+                    <p className="text-[#00F2EA] text-sm">
+                      <span className="font-bold flex items-center gap-2 mb-2">
+                        <i className="fa-solid fa-wrench"></i>
+                        How to Fix:
+                      </span>
+                      <span className="text-gray-300 leading-relaxed">{check.fix}</span>
+                    </p>
+                  </div>
                 )}
               </motion.div>
             ))}
