@@ -81,8 +81,8 @@ export const compressVideoFFmpeg = async (
   }
 ): Promise<File> => {
   const {
-    maxSizeMB = 15,
-    maxHeight = 720,
+    maxSizeMB = 20,  // Only compress files larger than 20MB
+    maxHeight = 540, // Reduced to 540p for faster processing
     targetBitrate = '1M'
   } = options || {};
 
@@ -119,26 +119,22 @@ export const compressVideoFFmpeg = async (
     }
   });
 
-  // Run FFmpeg compression
-  // -vf scale: resize to max height while keeping aspect ratio
-  // -b:v: target video bitrate
-  // -c:v libx264: H.264 codec (widely compatible)
-  // -preset fast: balance between speed and compression
-  // -crf 28: quality level (higher = smaller file, lower quality)
-  // -c:a aac: AAC audio codec
-  // -b:a 128k: audio bitrate
-  // -movflags +faststart: optimize for web streaming
+  // Run FFmpeg compression - OPTIMIZED FOR SPEED
+  // -preset ultrafast: fastest encoding (larger file but much faster)
+  // -crf 32: lower quality but faster (28 is default, higher = faster/smaller)
+  // -tune fastdecode: optimize for fast decoding
+  // -vf scale: resize to 540p for speed (still good for AI analysis)
+  // -r 24: reduce framerate to 24fps
+  // -an: remove audio (not needed for video analysis)
   await ffmpegInstance.exec([
     '-i', inputName,
-    '-vf', `scale=-2:min'(${maxHeight},ih)'`,
+    '-vf', `scale=-2:min(540\\,ih)`,
     '-c:v', 'libx264',
-    '-preset', 'fast',
-    '-crf', '28',
-    '-b:v', targetBitrate,
-    '-maxrate', `${parseInt(targetBitrate) * 1.5}M`,
-    '-bufsize', `${parseInt(targetBitrate) * 2}M`,
-    '-c:a', 'aac',
-    '-b:a', '128k',
+    '-preset', 'ultrafast',
+    '-crf', '32',
+    '-tune', 'fastdecode',
+    '-r', '24',
+    '-an',
     '-movflags', '+faststart',
     '-y',
     outputName
