@@ -1,5 +1,4 @@
 import React from "react";
-import { createRoot } from "react-dom/client";
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { AuthProvider, useAuth } from "./context/AuthContext";
 
@@ -63,11 +62,5 @@ const App = () => {
     </BrowserRouter>
   );
 };
-
-// Mount
-const container = document.getElementById("root");
-if (container) {
-  createRoot(container).render(<App />);
-}
 
 export default App;
