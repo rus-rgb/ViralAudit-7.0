@@ -2,6 +2,17 @@ import { FFmpeg } from '@ffmpeg/ffmpeg';
 import { fetchFile, toBlobURL } from '@ffmpeg/util';
 
 // ==========================================
+// TYPES
+// ==========================================
+export interface CompressionResult {
+  file: File;
+  method: 'ffmpeg' | 'canvas' | 'skipped';
+  originalSize: number;
+  compressedSize: number;
+  duration: number; // in seconds
+}
+
+// ==========================================
 // FFMPEG SINGLETON
 // ==========================================
 let ffmpeg: FFmpeg | null = null;
@@ -25,7 +36,7 @@ export const loadFFmpeg = async (onProgress?: (message: string) => void): Promis
   }
 
   ffmpegLoading = true;
-  onProgress?.('Loading video encoder...');
+  onProgress?.('Loading FFmpeg encoder...');
 
   try {
     ffmpeg = new FFmpeg();
@@ -44,11 +55,12 @@ export const loadFFmpeg = async (onProgress?: (message: string) => void): Promis
     });
 
     ffmpegLoaded = true;
-    onProgress?.('Encoder ready!');
+    onProgress?.('FFmpeg ready!');
+    console.log('✅ FFmpeg.wasm loaded successfully!');
     
     return ffmpeg;
   } catch (error) {
-    console.error('Failed to load FFmpeg:', error);
+    console.error('❌ Failed to load FFmpeg:', error);
     ffmpegLoading = false;
     throw error;
   } finally {
@@ -251,22 +263,53 @@ export const compressVideoCanvas = async (
 export const compressVideo = async (
   file: File,
   onProgress: (progress: number, message: string) => void
-): Promise<File> => {
+): Promise<CompressionResult> => {
+  const startTime = Date.now();
+  const originalSize = file.size;
+
   // Skip if small enough
   if (file.size <= 15 * 1024 * 1024) {
     onProgress(100, 'File already optimized');
-    return file;
+    console.log('⏭️ Skipping compression - file already small enough');
+    return {
+      file,
+      method: 'skipped',
+      originalSize,
+      compressedSize: file.size,
+      duration: 0
+    };
   }
 
   try {
     // Try FFmpeg first (faster, better quality)
-    return await compressVideoFFmpeg(file, onProgress);
+    console.log('🚀 Attempting FFmpeg.wasm compression...');
+    const compressedFile = await compressVideoFFmpeg(file, onProgress);
+    const duration = (Date.now() - startTime) / 1000;
+    
+    console.log(`✅ FFmpeg compression complete in ${duration.toFixed(1)}s`);
+    return {
+      file: compressedFile,
+      method: 'ffmpeg',
+      originalSize,
+      compressedSize: compressedFile.size,
+      duration
+    };
   } catch (error) {
-    console.warn('FFmpeg failed, falling back to canvas:', error);
-    onProgress(0, 'Switching to fallback encoder...');
+    console.warn('⚠️ FFmpeg failed, falling back to canvas:', error);
+    onProgress(0, 'FFmpeg unavailable, using fallback...');
     
     // Fallback to canvas-based compression
-    return await compressVideoCanvas(file, onProgress);
+    const compressedFile = await compressVideoCanvas(file, onProgress);
+    const duration = (Date.now() - startTime) / 1000;
+    
+    console.log(`✅ Canvas compression complete in ${duration.toFixed(1)}s`);
+    return {
+      file: compressedFile,
+      method: 'canvas',
+      originalSize,
+      compressedSize: compressedFile.size,
+      duration
+    };
   }
 };
 
@@ -292,8 +335,11 @@ function getExtension(filename: string): string {
 export const isFFmpegSupported = (): boolean => {
   // Check for SharedArrayBuffer support (required for FFmpeg.wasm)
   try {
-    return typeof SharedArrayBuffer !== 'undefined';
+    const supported = typeof SharedArrayBuffer !== 'undefined';
+    console.log(`🔍 SharedArrayBuffer supported: ${supported}`);
+    return supported;
   } catch {
+    console.log('🔍 SharedArrayBuffer: NOT supported');
     return false;
   }
 };
