@@ -14,7 +14,9 @@
     "react-router-dom": "^7.6.0",
     "framer-motion": "^12.23.24",
     "@supabase/supabase-js": "^2.39.0",
-    "@google/generative-ai": "^0.21.0"
+    "@google/generative-ai": "^0.21.0",
+    "@ffmpeg/ffmpeg": "^0.12.10",
+    "@ffmpeg/util": "^0.12.1"
   },
   "devDependencies": {
     "@types/node": "^22.14.0",
