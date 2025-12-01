@@ -140,6 +140,7 @@ export const generateAuditPDF = (audit: AuditRecord, whiteLabel: boolean = false
     { name: 'Visual', icon: '👁', data: audit.categories?.visual },
     { name: 'Audio', icon: '🔊', data: audit.categories?.audio },
     { name: 'Copy', icon: '✍️', data: audit.categories?.copy },
+    { name: 'Captions', icon: '💬', data: audit.categories?.captions },
   ];
 
   categories.forEach((cat) => {
