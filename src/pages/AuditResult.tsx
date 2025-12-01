@@ -213,13 +213,18 @@ const AuditResult = () => {
 
   // Helper to get category data with fallbacks
   const getCategoryData = (title: string, data: any) => {
-    let feedback = data?.feedback || "No feedback available.";
+    let feedback = data?.feedback || "";
     let fix = data?.fix || "";
     
-    // Special handling for captions
-    if (title === "Captions" && (feedback === "No feedback." || feedback === "No feedback" || feedback.length < 20)) {
+    // Special handling for captions with no/minimal feedback
+    if (title === "Captions" && (!feedback || feedback === "No feedback." || feedback === "No feedback" || feedback === "No feedback available." || feedback.length < 30)) {
       feedback = "No captions detected. 85% of people watch videos on mute. Without captions, you're invisible to most of your audience.";
       fix = "Add captions to every word spoken in the video. Use big, bold white text with a black outline so it's readable on any background.";
+    }
+    
+    // Default fallback for any empty feedback
+    if (!feedback) {
+      feedback = "No feedback available.";
     }
     
     return { feedback, fix, score: data?.score || 0 };
