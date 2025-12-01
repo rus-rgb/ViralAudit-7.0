@@ -233,11 +233,12 @@ const AuditResult = () => {
         )}
 
         {/* Category Cards */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
           {[
             { title: "Visuals", icon: "fa-eye", data: audit.categories.visual },
             { title: "Audio", icon: "fa-volume-high", data: audit.categories.audio },
             { title: "Copy", icon: "fa-pen-nib", data: audit.categories.copy },
+            { title: "Captions", icon: "fa-closed-captioning", data: audit.categories.captions },
           ].map((pillar, idx) => {
             const score = pillar.data?.score || 0;
             let scoreColor = "text-red-400";
