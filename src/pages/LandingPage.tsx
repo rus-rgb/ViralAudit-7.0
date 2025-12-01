@@ -266,7 +266,7 @@ const Pricing = () => {
               "White-label reports",
               "Team collaboration (5 seats)",
               "API access",
-              "Dedicated account manager",
+              "Priority support",
             ]}
           />
         </div>
