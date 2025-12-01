@@ -28,6 +28,7 @@ export interface AnalysisData {
     visual: AuditCategory;
     audio: AuditCategory;
     copy: AuditCategory;
+    captions: AuditCategory;
   };
   checks: CheckItem[];
   scriptRewrite?: ScriptRewrite;
@@ -44,6 +45,7 @@ export interface AuditRecord {
     visual: AuditCategory;
     audio: AuditCategory;
     copy: AuditCategory;
+    captions: AuditCategory;
   };
   checks: CheckItem[];
   script_rewrite?: ScriptRewrite;
@@ -60,7 +62,8 @@ export const DEFAULT_ANALYSIS: AnalysisData = {
   categories: {
     visual: { score: 0, feedback: "N/A", fix: "" },
     audio: { score: 0, feedback: "N/A", fix: "" },
-    copy: { score: 0, feedback: "N/A", fix: "" }
+    copy: { score: 0, feedback: "N/A", fix: "" },
+    captions: { score: 0, feedback: "N/A", fix: "" }
   },
   checks: [],
   scriptRewrite: undefined
