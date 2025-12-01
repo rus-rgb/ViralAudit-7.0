@@ -125,54 +125,59 @@ const Hero = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            {/* Mock Result Card */}
+            {/* Mock Result Card - Based on real audit */}
             <div className="bg-[#111] border border-[#222] rounded-2xl p-6 shadow-2xl">
               {/* Header */}
-              <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#222]">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
-                    <span className="text-white font-bold">4.2</span>
+              <div className="flex items-center justify-between mb-5 pb-4 border-b border-[#222]">
+                <div className="flex items-center gap-4">
+                  {/* Score Circle */}
+                  <div className="relative w-16 h-16">
+                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 64 64">
+                      <circle cx="32" cy="32" r="28" stroke="#222" strokeWidth="4" fill="transparent" />
+                      <circle cx="32" cy="32" r="28" stroke="#eab308" strokeWidth="4" fill="transparent" 
+                        strokeDasharray="176" strokeDashoffset="88" strokeLinecap="round" />
+                    </svg>
+                    <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-white">5</span>
                   </div>
                   <div>
-                    <p className="text-white font-semibold text-sm">product_ad_v3.mp4</p>
-                    <p className="text-gray-500 text-xs">Analyzed just now</p>
+                    <p className="text-xs text-gray-500 uppercase tracking-wider">Creative Director's Verdict</p>
                   </div>
                 </div>
-                <span className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-full">Needs Work</span>
               </div>
               
               {/* Verdict */}
-              <div className="mb-4 p-3 bg-[#0a0a0a] rounded-lg border border-[#222]">
-                <p className="text-gray-300 text-sm italic">
-                  "Your hook is 4 seconds of nothing. You show a logo fade-in while everyone scrolls away. The good stuff is buried at 0:18."
-                </p>
-              </div>
+              <p className="text-white font-medium text-sm leading-relaxed mb-5">
+                "This ad is okay at showing a problem, but it's too slow, doesn't tell me what to do, and won't keep people watching."
+              </p>
               
-              {/* Scores */}
-              <div className="grid grid-cols-4 gap-2 mb-4">
+              {/* Score Bars */}
+              <div className="space-y-3 mb-5">
                 {[
-                  { label: "Visual", score: 52, color: "yellow" },
-                  { label: "Audio", score: 38, color: "red" },
-                  { label: "Copy", score: 61, color: "yellow" },
-                  { label: "Captions", score: 15, color: "red" },
+                  { label: "Visuals", score: 40, color: "bg-red-500" },
+                  { label: "Audio", score: 50, color: "bg-yellow-500" },
+                  { label: "Copy", score: 45, color: "bg-red-500" },
+                  { label: "Captions", score: 0, color: "bg-red-500" },
                 ].map((item) => (
-                  <div key={item.label} className="text-center p-2 bg-[#0a0a0a] rounded-lg">
-                    <p className={`text-lg font-bold ${item.color === 'red' ? 'text-red-400' : item.color === 'yellow' ? 'text-yellow-400' : 'text-green-400'}`}>
-                      {item.score}
-                    </p>
-                    <p className="text-gray-500 text-xs">{item.label}</p>
+                  <div key={item.label} className="flex items-center gap-3">
+                    <span className="text-gray-400 text-xs w-16">{item.label}</span>
+                    <div className="flex-1 h-1.5 bg-[#222] rounded-full overflow-hidden">
+                      <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.score}%` }}></div>
+                    </div>
+                    <span className={`text-xs font-bold w-8 text-right ${item.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
+                      {item.score}%
+                    </span>
                   </div>
                 ))}
               </div>
               
-              {/* Fix Preview */}
-              <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+              {/* Priority Fix Preview */}
+              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
                 <div className="flex items-center gap-2 mb-2">
-                  <i className="fa-solid fa-xmark text-red-400 text-xs"></i>
-                  <span className="text-red-400 text-xs font-bold">FIRST 3 SECONDS - FAIL</span>
+                  <span className="bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">1</span>
+                  <span className="text-white text-xs font-bold">Does It Keep You Watching?</span>
                 </div>
-                <p className="text-gray-400 text-xs">
-                  At 0:00-0:03, you show a logo animation. Nobody cares. Start with the problem instead.
+                <p className="text-gray-400 text-xs leading-relaxed">
+                  Cut 0:08-0:12 completely. You need a new visual every 1-2 seconds. Don't let any shot last more than 2 seconds.
                 </p>
               </div>
             </div>
