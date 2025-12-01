@@ -68,25 +68,193 @@ const Hero = () => {
   };
 
   return (
-    <section className="pt-40 pb-20 px-6 text-center">
-      <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.6 }}>
-        <h1 className="text-5xl md:text-7xl font-bold text-white mb-6">
-          Stop Guessing.<br />
-          <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]">
-            Audit Your Ads Instantly.
-          </span>
-        </h1>
-        <p className="text-gray-400 text-xl max-w-2xl mx-auto mb-10">
-          Upload your video creative and let our AI analyze your hooks, pacing, and copy for viral potential.
-        </p>
-        <button
-          onClick={handleCTA}
-          className="bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(0,242,234,0.3)] inline-flex items-center gap-2"
-        >
-          <i className="fa-solid fa-rocket"></i>
-          {user ? 'Start New Audit' : 'Get Started Free'}
-        </button>
-      </motion.div>
+    <section className="pt-32 pb-16 px-6">
+      <div className="max-w-6xl mx-auto">
+        <div className="grid lg:grid-cols-2 gap-12 items-center">
+          {/* Left: Copy */}
+          <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ duration: 0.6 }}>
+            {/* Badge */}
+            <div className="inline-flex items-center gap-2 bg-[#00F2EA]/10 border border-[#00F2EA]/20 rounded-full px-4 py-1.5 mb-6">
+              <span className="w-2 h-2 bg-[#00F2EA] rounded-full animate-pulse"></span>
+              <span className="text-[#00F2EA] text-sm font-medium">Free: 3 audits, no credit card</span>
+            </div>
+            
+            <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
+              Your Ads Are Failing.<br />
+              <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]">
+                Find Out Why in 60 Seconds.
+              </span>
+            </h1>
+            
+            <p className="text-gray-400 text-lg md:text-xl mb-8 leading-relaxed">
+              Upload your video ad. Get brutal, timestamp-specific feedback on your hook, pacing, copy, and CTA. Know exactly what to fix.
+            </p>
+            
+            {/* CTA Buttons */}
+            <div className="flex flex-col sm:flex-row gap-4 mb-6">
+              <button
+                onClick={handleCTA}
+                className="bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(0,242,234,0.3)] inline-flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-bolt"></i>
+                Get Your Free Audit
+              </button>
+              <a
+                href="#demo"
+                className="border border-white/20 text-white px-8 py-4 rounded-xl font-bold text-lg hover:bg-white/5 transition-colors inline-flex items-center justify-center gap-2"
+              >
+                <i className="fa-solid fa-play"></i>
+                See Example
+              </a>
+            </div>
+            
+            {/* Trust */}
+            <p className="text-gray-500 text-sm">
+              <i className="fa-solid fa-check text-green-500 mr-2"></i>
+              Works with TikTok, Meta, YouTube ads
+              <span className="mx-3">•</span>
+              <i className="fa-solid fa-check text-green-500 mr-2"></i>
+              Results in 60 seconds
+            </p>
+          </motion.div>
+          
+          {/* Right: Demo/Visual */}
+          <motion.div 
+            initial={{ opacity: 0, x: 20 }} 
+            animate={{ opacity: 1, x: 0 }} 
+            transition={{ duration: 0.6, delay: 0.2 }}
+            className="relative"
+          >
+            {/* Mock Result Card */}
+            <div className="bg-[#111] border border-[#222] rounded-2xl p-6 shadow-2xl">
+              {/* Header */}
+              <div className="flex items-center justify-between mb-4 pb-4 border-b border-[#222]">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-lg flex items-center justify-center">
+                    <span className="text-white font-bold">4.2</span>
+                  </div>
+                  <div>
+                    <p className="text-white font-semibold text-sm">product_ad_v3.mp4</p>
+                    <p className="text-gray-500 text-xs">Analyzed just now</p>
+                  </div>
+                </div>
+                <span className="text-xs bg-red-500/10 text-red-400 px-2 py-1 rounded-full">Needs Work</span>
+              </div>
+              
+              {/* Verdict */}
+              <div className="mb-4 p-3 bg-[#0a0a0a] rounded-lg border border-[#222]">
+                <p className="text-gray-300 text-sm italic">
+                  "Your hook is 4 seconds of nothing. You show a logo fade-in while everyone scrolls away. The good stuff is buried at 0:18."
+                </p>
+              </div>
+              
+              {/* Scores */}
+              <div className="grid grid-cols-4 gap-2 mb-4">
+                {[
+                  { label: "Visual", score: 52, color: "yellow" },
+                  { label: "Audio", score: 38, color: "red" },
+                  { label: "Copy", score: 61, color: "yellow" },
+                  { label: "Captions", score: 15, color: "red" },
+                ].map((item) => (
+                  <div key={item.label} className="text-center p-2 bg-[#0a0a0a] rounded-lg">
+                    <p className={`text-lg font-bold ${item.color === 'red' ? 'text-red-400' : item.color === 'yellow' ? 'text-yellow-400' : 'text-green-400'}`}>
+                      {item.score}
+                    </p>
+                    <p className="text-gray-500 text-xs">{item.label}</p>
+                  </div>
+                ))}
+              </div>
+              
+              {/* Fix Preview */}
+              <div className="p-3 bg-red-500/5 border border-red-500/20 rounded-lg">
+                <div className="flex items-center gap-2 mb-2">
+                  <i className="fa-solid fa-xmark text-red-400 text-xs"></i>
+                  <span className="text-red-400 text-xs font-bold">FIRST 3 SECONDS - FAIL</span>
+                </div>
+                <p className="text-gray-400 text-xs">
+                  At 0:00-0:03, you show a logo animation. Nobody cares. Start with the problem instead.
+                </p>
+              </div>
+            </div>
+            
+            {/* Decorative elements */}
+            <div className="absolute -top-4 -right-4 w-24 h-24 bg-[#00F2EA]/20 blur-3xl rounded-full"></div>
+            <div className="absolute -bottom-4 -left-4 w-32 h-32 bg-purple-500/20 blur-3xl rounded-full"></div>
+          </motion.div>
+        </div>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// HOW IT WORKS
+// ==========================================
+const HowItWorks = () => {
+  const steps = [
+    {
+      num: "1",
+      title: "Upload Your Ad",
+      desc: "Drag and drop any video ad. We support MP4, MOV, WebM up to 500MB.",
+      icon: "fa-cloud-arrow-up"
+    },
+    {
+      num: "2", 
+      title: "AI Analyzes Everything",
+      desc: "Our AI watches your ad like a $50k/month creative strategist. Every frame, every word.",
+      icon: "fa-brain"
+    },
+    {
+      num: "3",
+      title: "Get Brutal Feedback",
+      desc: "Timestamp-specific fixes. Not 'improve your hook' but 'At 0:02, cut the logo and start with the problem.'",
+      icon: "fa-list-check"
+    }
+  ];
+
+  return (
+    <section id="demo" className="py-20 border-t border-white/5">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            How It Works
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Get actionable feedback in 60 seconds. No fluff, no generic advice.
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-3 gap-8">
+          {steps.map((step, idx) => (
+            <motion.div
+              key={step.num}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.1 }}
+              className="relative"
+            >
+              {/* Connector line */}
+              {idx < steps.length - 1 && (
+                <div className="hidden md:block absolute top-12 left-[60%] w-[80%] h-[2px] bg-gradient-to-r from-[#00F2EA]/50 to-transparent"></div>
+              )}
+              
+              <div className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 hover:border-[#00F2EA]/30 transition-colors">
+                <div className="flex items-center gap-4 mb-4">
+                  <div className="w-12 h-12 bg-gradient-to-br from-[#00F2EA] to-[#00D4D4] rounded-xl flex items-center justify-center text-black font-bold text-xl">
+                    {step.num}
+                  </div>
+                  <div className="w-10 h-10 bg-[#111] rounded-lg flex items-center justify-center text-[#00F2EA]">
+                    <i className={`fa-solid ${step.icon}`}></i>
+                  </div>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">{step.title}</h3>
+                <p className="text-gray-400 text-sm leading-relaxed">{step.desc}</p>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+      </div>
     </section>
   );
 };
@@ -95,27 +263,69 @@ const Hero = () => {
 // FEATURES
 // ==========================================
 const Features = () => {
-  const FeatureCard = ({ icon, title, desc }: { icon: string; title: string; desc: string }) => (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      whileInView={{ opacity: 1, y: 0 }}
-      viewport={{ once: true }}
-      className="p-8 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-colors"
-    >
-      <div className="w-12 h-12 bg-gradient-to-br from-[#00F2EA]/20 to-[#00F2EA]/5 rounded-xl flex items-center justify-center mb-6 text-xl text-[#00F2EA]">
-        <i className={icon}></i>
-      </div>
-      <h3 className="text-xl font-bold mb-3 text-white">{title}</h3>
-      <p className="text-gray-400 text-sm">{desc}</p>
-    </motion.div>
-  );
+  const features = [
+    {
+      icon: "fa-solid fa-clock",
+      title: "60-Second Results", 
+      desc: "Upload, wait a minute, get your full analysis. No scheduling calls, no waiting days."
+    },
+    {
+      icon: "fa-solid fa-crosshairs",
+      title: "Timestamp-Specific Fixes",
+      desc: "'At 0:03, your text is unreadable.' Not vague advice - exact moments to fix."
+    },
+    {
+      icon: "fa-solid fa-pen-nib",
+      title: "Script Rewrites",
+      desc: "Get an improved version of your script. See exactly what to change and why."
+    },
+    {
+      icon: "fa-solid fa-closed-captioning",
+      title: "Caption Analysis",
+      desc: "85% watch on mute. We check if your captions are readable, timed right, and effective."
+    },
+    {
+      icon: "fa-solid fa-file-pdf",
+      title: "PDF Reports",
+      desc: "Download professional reports to share with clients or your team."
+    },
+    {
+      icon: "fa-solid fa-shield-halved",
+      title: "100% Private",
+      desc: "Your videos are analyzed and immediately deleted. We never store or train on your content."
+    }
+  ];
 
   return (
-    <section id="features" className="py-20">
-      <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-3 gap-6">
-        <FeatureCard icon="fa-solid fa-list-check" title="Frame-by-Frame" desc="Detailed breakdown of your hook, body, and CTA with timestamp references." />
-        <FeatureCard icon="fa-solid fa-wand-magic-sparkles" title="Actionable Fixes" desc="Don't just get a score. Get a specific 'Fix List' to improve ROAS." />
-        <FeatureCard icon="fa-solid fa-shield-halved" title="Secure & Private" desc="Your creatives are analyzed and discarded. We never train on your data." />
+    <section id="features" className="py-20 border-t border-white/5">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Everything You Need to Fix Bad Ads
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Stop guessing why your ads aren't working. Get specific, actionable fixes.
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {features.map((feature, idx) => (
+            <motion.div
+              key={feature.title}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.05 }}
+              className="p-6 rounded-2xl bg-[#0a0a0a] border border-white/10 hover:border-white/20 transition-colors"
+            >
+              <div className="w-12 h-12 bg-gradient-to-br from-[#00F2EA]/20 to-[#00F2EA]/5 rounded-xl flex items-center justify-center mb-4 text-xl text-[#00F2EA]">
+                <i className={feature.icon}></i>
+              </div>
+              <h3 className="text-lg font-bold mb-2 text-white">{feature.title}</h3>
+              <p className="text-gray-400 text-sm leading-relaxed">{feature.desc}</p>
+            </motion.div>
+          ))}
+        </div>
       </div>
     </section>
   );
@@ -349,64 +559,56 @@ const FeatureItem = ({ icon, title, desc }: { icon: string; title: string; desc:
 );
 
 // ==========================================
-// TESTIMONIALS
+// SOCIAL PROOF (Honest version - no fake testimonials)
 // ==========================================
-const Testimonials = () => {
-  const testimonials = [
-    {
-      quote: "We cut our creative testing budget in half. ViralAudit catches the obvious issues before we waste money on ads that were never going to work.",
-      author: "Sarah Chen",
-      role: "Head of Growth, DTC Brand",
-      avatar: "SC"
-    },
-    {
-      quote: "The fix lists are gold. My team used to spend hours debating what was wrong with an ad. Now we just run it through ViralAudit and fix what it tells us.",
-      author: "Marcus Rodriguez",
-      role: "Creative Director, Performance Agency",
-      avatar: "MR"
-    },
-    {
-      quote: "I was skeptical about AI reviewing creative, but the timestamp-specific feedback is incredibly useful. It's like having a creative strategist on demand.",
-      author: "Emily Watson",
-      role: "Media Buyer, E-commerce",
-      avatar: "EW"
-    }
-  ];
-
+const SocialProof = () => {
   return (
-    <section className="py-20 border-t border-white/5">
+    <section className="py-16 border-t border-white/5">
       <div className="max-w-6xl mx-auto px-6">
-        <h2 className="text-3xl font-bold text-white text-center mb-4">Loved by Performance Marketers</h2>
-        <p className="text-gray-400 text-center mb-12 max-w-2xl mx-auto">
-          Join hundreds of brands and agencies who use ViralAudit to ship better creative, faster.
-        </p>
-        <div className="grid md:grid-cols-3 gap-6">
-          {testimonials.map((t, idx) => (
+        {/* Stats */}
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-6 mb-12">
+          {[
+            { value: "60s", label: "Average analysis time" },
+            { value: "4", label: "Categories analyzed" },
+            { value: "5", label: "Diagnostic checks" },
+            { value: "100%", label: "Privacy guaranteed" },
+          ].map((stat, idx) => (
             <motion.div
               key={idx}
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
               transition={{ delay: idx * 0.1 }}
-              className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6"
+              className="text-center p-6 bg-[#0a0a0a] border border-white/10 rounded-2xl"
             >
-              <div className="flex gap-1 text-yellow-400 mb-4">
-                {[...Array(5)].map((_, i) => (
-                  <i key={i} className="fa-solid fa-star text-sm"></i>
-                ))}
-              </div>
-              <p className="text-gray-300 mb-6 text-sm leading-relaxed">"{t.quote}"</p>
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-gradient-to-br from-[#00F2EA] to-purple-600 flex items-center justify-center text-white text-sm font-bold">
-                  {t.avatar}
-                </div>
-                <div>
-                  <p className="text-white font-semibold text-sm">{t.author}</p>
-                  <p className="text-gray-500 text-xs">{t.role}</p>
-                </div>
-              </div>
+              <p className="text-3xl md:text-4xl font-bold text-transparent bg-clip-text bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] mb-2">
+                {stat.value}
+              </p>
+              <p className="text-gray-400 text-sm">{stat.label}</p>
             </motion.div>
           ))}
+        </div>
+        
+        {/* Who it's for */}
+        <div className="text-center">
+          <p className="text-gray-400 text-sm mb-6">Built for people who run ads</p>
+          <div className="flex flex-wrap justify-center gap-4">
+            {[
+              "UGC Creators",
+              "Media Buyers", 
+              "DTC Brands",
+              "Marketing Agencies",
+              "Freelancers",
+              "E-commerce Stores"
+            ].map((item, idx) => (
+              <span 
+                key={idx}
+                className="px-4 py-2 bg-[#111] border border-white/10 rounded-full text-gray-300 text-sm"
+              >
+                {item}
+              </span>
+            ))}
+          </div>
         </div>
       </div>
     </section>
@@ -527,19 +729,20 @@ const LandingPage = () => {
       <Background />
       <Navbar />
       <Hero />
+      <HowItWorks />
       <Features />
-      <Testimonials />
+      <SocialProof />
       <Pricing />
       <FAQ />
       <FinalCTA />
       <footer className="py-10 text-center text-gray-600 text-xs border-t border-white/5">
         <div className="max-w-6xl mx-auto px-6">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-            <span>© 2025 ViralAudit Inc. All rights reserved.</span>
+            <span>© 2025 ViralAudit. All rights reserved.</span>
             <div className="flex gap-6">
               <a href="#" className="hover:text-white transition-colors">Privacy Policy</a>
               <a href="#" className="hover:text-white transition-colors">Terms of Service</a>
-              <a href="#" className="hover:text-white transition-colors">Contact</a>
+              <a href="mailto:hello@viralauditai.com" className="hover:text-white transition-colors">Contact</a>
             </div>
           </div>
         </div>
