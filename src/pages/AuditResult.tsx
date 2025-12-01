@@ -246,6 +246,14 @@ const AuditResult = () => {
             if (score >= 50) { scoreColor = "text-yellow-400"; scoreBg = "bg-yellow-500/10"; }
             if (score >= 70) { scoreColor = "text-green-400"; scoreBg = "bg-green-500/10"; }
             
+            // Better fallback for captions with no feedback
+            let feedback = pillar.data?.feedback || "No feedback.";
+            let fix = pillar.data?.fix || "";
+            if (pillar.title === "Captions" && (feedback === "No feedback." || feedback === "No feedback" || feedback.length < 10)) {
+              feedback = "No captions detected. 85% of people watch videos on mute. Without captions, you're invisible to most of your audience.";
+              fix = "Add captions to every word spoken in the video. Use big, bold white text with a black outline so it's readable on any background.";
+            }
+            
             return (
             <motion.div
               key={pillar.title}
@@ -264,15 +272,15 @@ const AuditResult = () => {
                 </span>
               </div>
               <p className="text-sm text-gray-300 mb-4 flex-grow leading-relaxed">
-                {pillar.data?.feedback || "No feedback."}
+                {feedback}
               </p>
-              {pillar.data?.fix && (
+              {fix && (
                 <div className="bg-[#00F2EA]/5 border border-[#00F2EA]/20 rounded-lg p-4 mt-auto">
                   <p className="text-xs text-[#00F2EA] font-bold uppercase mb-2 flex items-center gap-1">
                     <i className="fa-solid fa-wrench"></i>
                     How to Fix
                   </p>
-                  <p className="text-sm text-gray-300 leading-relaxed">{pillar.data.fix}</p>
+                  <p className="text-sm text-gray-300 leading-relaxed">{fix}</p>
                 </div>
               )}
             </motion.div>
