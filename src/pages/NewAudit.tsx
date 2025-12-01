@@ -71,6 +71,11 @@ Return ONLY valid JSON. No markdown. No code blocks.
       "score": <0-100>,
       "feedback": "<Be brutal about the words. Example: 'You say premium quality but that means nothing. You list 5 features but never tell me why I should care. Your CTA is just Learn More - that's the laziest CTA ever.'>",
       "fix": "<Give them better words. Example: 'Don't say premium quality - say Lasts 10 years guaranteed. Don't say Learn More - say Get 50% Off Today Only.'>"
+    },
+    "captions": {
+      "score": <0-100>,
+      "feedback": "<Be brutal about the captions/subtitles. Are there any? Can you read them? Are they too small? Wrong color? Bad timing? Example: 'No captions at all - you just lost 85% of viewers who watch on mute. The text at 0:05 is white on a light background - impossible to read.'>",
+      "fix": "<Exact fix. Example: 'Add captions to the entire video. Use big, bold text with a dark outline so it's readable on any background. Make sure captions appear slightly BEFORE the words are spoken.'>"
     }
   },
   "checks": [
