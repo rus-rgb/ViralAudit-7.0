@@ -125,7 +125,7 @@ export const compressVideoFFmpeg = async (
   // -tune fastdecode: optimize for fast decoding
   // -vf scale: resize to 540p for speed (still good for AI analysis)
   // -r 24: reduce framerate to 24fps
-  // -an: remove audio (not needed for video analysis)
+  // -c:a aac -b:a 64k: compress audio to 64kbps AAC (good enough for speech analysis)
   await ffmpegInstance.exec([
     '-i', inputName,
     '-vf', `scale=-2:min(540\\,ih)`,
@@ -134,7 +134,9 @@ export const compressVideoFFmpeg = async (
     '-crf', '32',
     '-tune', 'fastdecode',
     '-r', '24',
-    '-an',
+    '-c:a', 'aac',
+    '-b:a', '64k',
+    '-ac', '1',
     '-movflags', '+faststart',
     '-y',
     outputName
@@ -184,7 +186,7 @@ export const compressVideoCanvas = async (
 
   return new Promise((resolve, reject) => {
     const video = document.createElement('video');
-    video.muted = true;
+    video.muted = false; // Keep audio for capture
     video.playsInline = true;
 
     const canvas = document.createElement('canvas');
@@ -200,10 +202,34 @@ export const compressVideoCanvas = async (
       const fps = 24;
       const totalFrames = Math.floor(duration * fps);
 
-      const stream = canvas.captureStream(fps);
-      const mediaRecorder = new MediaRecorder(stream, {
-        mimeType: 'video/webm;codecs=vp8',
+      // Capture video from canvas
+      const canvasStream = canvas.captureStream(fps);
+      
+      // Try to capture audio from the video element
+      let combinedStream: MediaStream;
+      try {
+        // @ts-ignore - captureStream exists on video elements
+        const audioStream = video.captureStream ? video.captureStream() : null;
+        if (audioStream && audioStream.getAudioTracks().length > 0) {
+          // Combine video canvas stream with audio from original video
+          combinedStream = new MediaStream([
+            ...canvasStream.getVideoTracks(),
+            ...audioStream.getAudioTracks()
+          ]);
+          console.log('🔊 Audio track included in compression');
+        } else {
+          combinedStream = canvasStream;
+          console.log('⚠️ No audio track available');
+        }
+      } catch (e) {
+        combinedStream = canvasStream;
+        console.log('⚠️ Could not capture audio:', e);
+      }
+
+      const mediaRecorder = new MediaRecorder(combinedStream, {
+        mimeType: 'video/webm;codecs=vp8,opus',
         videoBitsPerSecond: 1000000,
+        audioBitsPerSecond: 64000,
       });
 
       const chunks: Blob[] = [];
