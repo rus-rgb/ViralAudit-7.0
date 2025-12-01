@@ -125,61 +125,15 @@ const Hero = () => {
             transition={{ duration: 0.6, delay: 0.2 }}
             className="relative"
           >
-            {/* Mock Result Card - Based on real audit */}
-            <div className="bg-[#111] border border-[#222] rounded-2xl p-6 shadow-2xl">
-              {/* Header */}
-              <div className="flex items-center justify-between mb-5 pb-4 border-b border-[#222]">
-                <div className="flex items-center gap-4">
-                  {/* Score Circle */}
-                  <div className="relative w-16 h-16">
-                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 64 64">
-                      <circle cx="32" cy="32" r="28" stroke="#222" strokeWidth="4" fill="transparent" />
-                      <circle cx="32" cy="32" r="28" stroke="#eab308" strokeWidth="4" fill="transparent" 
-                        strokeDasharray="176" strokeDashoffset="88" strokeLinecap="round" />
-                    </svg>
-                    <span className="absolute inset-0 flex items-center justify-center text-xl font-bold text-white">5</span>
-                  </div>
-                  <div>
-                    <p className="text-xs text-gray-500 uppercase tracking-wider">Creative Director's Verdict</p>
-                  </div>
-                </div>
-              </div>
-              
-              {/* Verdict */}
-              <p className="text-white font-medium text-sm leading-relaxed mb-5">
-                "This ad is okay at showing a problem, but it's too slow, doesn't tell me what to do, and won't keep people watching."
-              </p>
-              
-              {/* Score Bars */}
-              <div className="space-y-3 mb-5">
-                {[
-                  { label: "Visuals", score: 40, color: "bg-red-500" },
-                  { label: "Audio", score: 50, color: "bg-yellow-500" },
-                  { label: "Copy", score: 45, color: "bg-red-500" },
-                  { label: "Captions", score: 0, color: "bg-red-500" },
-                ].map((item) => (
-                  <div key={item.label} className="flex items-center gap-3">
-                    <span className="text-gray-400 text-xs w-16">{item.label}</span>
-                    <div className="flex-1 h-1.5 bg-[#222] rounded-full overflow-hidden">
-                      <div className={`h-full ${item.color} rounded-full`} style={{ width: `${item.score}%` }}></div>
-                    </div>
-                    <span className={`text-xs font-bold w-8 text-right ${item.score >= 50 ? 'text-yellow-400' : 'text-red-400'}`}>
-                      {item.score}%
-                    </span>
-                  </div>
-                ))}
-              </div>
-              
-              {/* Priority Fix Preview */}
-              <div className="bg-red-500/5 border border-red-500/20 rounded-xl p-4">
-                <div className="flex items-center gap-2 mb-2">
-                  <span className="bg-red-500 text-white text-xs font-bold w-5 h-5 rounded-full flex items-center justify-center">1</span>
-                  <span className="text-white text-xs font-bold">Does It Keep You Watching?</span>
-                </div>
-                <p className="text-gray-400 text-xs leading-relaxed">
-                  Cut 0:08-0:12 completely. You need a new visual every 1-2 seconds. Don't let any shot last more than 2 seconds.
-                </p>
-              </div>
+            {/* Actual Screenshot */}
+            <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-[#222]">
+              <img 
+                src="/audit-example.png" 
+                alt="ViralAudit analysis example showing a score of 5 with detailed feedback on visuals, audio, copy, and captions"
+                className="w-full h-auto"
+              />
+              {/* Subtle gradient overlay at bottom */}
+              <div className="absolute bottom-0 left-0 right-0 h-16 bg-gradient-to-t from-black/50 to-transparent"></div>
             </div>
             
             {/* Decorative elements */}
