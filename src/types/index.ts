@@ -21,6 +21,27 @@ export interface ScriptRewrite {
   changes: string[];
 }
 
+// ==========================================
+// TECHNICAL ANALYSIS (Level 1 Features)
+// ==========================================
+
+export interface TechnicalCheck {
+  label: string;
+  status: 'PASS' | 'FAIL' | 'WARN';
+  value: string;
+  details: string;
+  fix?: string;
+}
+
+export interface TechnicalAnalysis {
+  resolution: TechnicalCheck;
+  aspectRatio: TechnicalCheck;
+  duration: TechnicalCheck;
+  fileSize: TechnicalCheck;
+  frameRate: TechnicalCheck;
+  hasAudio: TechnicalCheck;
+}
+
 export interface AnalysisData {
   overallScore: number;
   verdict: string;
@@ -32,6 +53,7 @@ export interface AnalysisData {
   };
   checks: CheckItem[];
   scriptRewrite?: ScriptRewrite;
+  technicalAnalysis?: TechnicalAnalysis;
 }
 
 export interface AuditRecord {
@@ -49,6 +71,7 @@ export interface AuditRecord {
   };
   checks: CheckItem[];
   script_rewrite?: ScriptRewrite;
+  technical_analysis?: TechnicalAnalysis;
   created_at: string;
 }
 
@@ -66,7 +89,8 @@ export const DEFAULT_ANALYSIS: AnalysisData = {
     captions: { score: 0, feedback: "N/A", fix: "" }
   },
   checks: [],
-  scriptRewrite: undefined
+  scriptRewrite: undefined,
+  technicalAnalysis: undefined
 };
 
 // ==========================================
