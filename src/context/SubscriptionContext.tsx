@@ -132,11 +132,16 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     try {
       // Try to fetch subscription data from profiles table
       // This might fail if the columns don't exist yet
+      console.log('🔍 Fetching subscription for user:', user.id);
+      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
+
+      console.log('📦 Raw profile data:', data);
+      console.log('❌ Query error:', error);
 
       // Default to free plan
       let plan: PlanType = 'free';
@@ -148,12 +153,15 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
 
       // If we have data and the subscription columns exist, use them
       if (data && !error) {
-        plan = (data.subscription_plan || 'free') as PlanType;
+        // Check both 'plan' and 'subscription_plan' columns (webhook updates both)
+        plan = (data.plan || data.subscription_plan || 'free') as PlanType;
         status = data.subscription_status || 'free';
         renewsAt = data.subscription_renews_at || null;
         endsAt = data.subscription_ends_at || null;
         customerId = data.lemonsqueezy_customer_id || null;
         subscriptionId = data.lemonsqueezy_subscription_id || null;
+        
+        console.log('📊 Subscription data loaded:', { plan, status, customerId });
       }
 
       // Get limits for this plan
