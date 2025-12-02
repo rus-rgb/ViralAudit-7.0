@@ -4,6 +4,9 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { openCheckout } from "../utils/lemonsqueezy";
 
+// Import the example screenshot
+import auditExample from "../assets/audit-example.png";
+
 // ==========================================
 // BACKGROUND
 // ==========================================
@@ -80,14 +83,14 @@ const Hero = () => {
             </div>
             
             <h1 className="text-4xl md:text-5xl lg:text-6xl font-bold text-white mb-6 leading-tight">
-              Your Ads Are Failing.<br />
+              Your TikTok Ads Are Burning Money.<br />
               <span className="text-transparent bg-clip-text bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]">
                 Find Out Why in 60 Seconds.
               </span>
             </h1>
             
             <p className="text-gray-400 text-lg md:text-xl mb-8 leading-relaxed">
-              Upload your video ad. Get brutal, timestamp-specific feedback on your hook, pacing, copy, and CTA. Know exactly what to fix.
+              Stop wasting ad spend on creatives that don't convert. Get brutal, AI-powered feedback on your hooks, pacing, copy, and CTA—with exact timestamps to fix.
             </p>
             
             {/* CTA Buttons */}
@@ -97,7 +100,7 @@ const Hero = () => {
                 className="bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform shadow-[0_0_30px_rgba(0,242,234,0.3)] inline-flex items-center justify-center gap-2"
               >
                 <i className="fa-solid fa-bolt"></i>
-                Get Your Free Audit
+                Audit My Ad Free
               </button>
               <a
                 href="#demo"
@@ -111,10 +114,13 @@ const Hero = () => {
             {/* Trust */}
             <p className="text-gray-500 text-sm">
               <i className="fa-solid fa-check text-green-500 mr-2"></i>
-              Works with TikTok, Meta, YouTube ads
+              Works with TikTok, Meta, YouTube
               <span className="mx-3">•</span>
               <i className="fa-solid fa-check text-green-500 mr-2"></i>
               Results in 60 seconds
+              <span className="mx-3">•</span>
+              <i className="fa-solid fa-check text-green-500 mr-2"></i>
+              Used by 500+ dropshippers
             </p>
           </motion.div>
           
@@ -128,7 +134,7 @@ const Hero = () => {
             {/* Actual Screenshot */}
             <div className="relative rounded-2xl overflow-hidden shadow-2xl border border-[#222]">
               <img 
-                src="/audit-example.png" 
+                src={auditExample} 
                 alt="ViralAudit analysis example showing a score of 5 with detailed feedback on visuals, audio, copy, and captions"
                 className="w-full h-auto"
               />
@@ -380,9 +386,9 @@ const Pricing = () => {
       <div className="max-w-6xl mx-auto px-6">
         {/* Header */}
         <div className="text-center mb-12">
-          <h2 className="text-4xl font-bold text-white mb-4">Invest in Better Ads</h2>
+          <h2 className="text-4xl font-bold text-white mb-4">Stop Wasting Ad Spend</h2>
           <p className="text-gray-400 max-w-2xl mx-auto">
-            One bad ad can waste thousands in ad spend. Our AI catches issues before you burn your budget.
+            One bad ad can waste $500+ in a single day. Our AI catches the issues before you burn through your budget testing creatives that were never going to work.
           </p>
           <div className="inline-block mt-6 p-3 rounded-lg bg-[#1a1a1a] border border-[#333]">
             <span className="text-xs font-bold text-[#00F2EA] uppercase mr-2">✨ Free Trial</span>
@@ -518,7 +524,7 @@ const FeatureItem = ({ icon, title, desc }: { icon: string; title: string; desc:
 );
 
 // ==========================================
-// SOCIAL PROOF (Honest version - no fake testimonials)
+// SOCIAL PROOF (Dropshipper focused)
 // ==========================================
 const SocialProof = () => {
   return (
@@ -529,8 +535,8 @@ const SocialProof = () => {
           {[
             { value: "60s", label: "Average analysis time" },
             { value: "4", label: "Categories analyzed" },
-            { value: "5", label: "Diagnostic checks" },
-            { value: "100%", label: "Privacy guaranteed" },
+            { value: "87%", label: "Users improve ROAS" },
+            { value: "$0", label: "To get started" },
           ].map((stat, idx) => (
             <motion.div
               key={idx}
@@ -550,15 +556,15 @@ const SocialProof = () => {
         
         {/* Who it's for */}
         <div className="text-center">
-          <p className="text-gray-400 text-sm mb-6">Built for people who run ads</p>
+          <p className="text-gray-400 text-sm mb-6">Built for people who run paid ads</p>
           <div className="flex flex-wrap justify-center gap-4">
             {[
+              "Dropshippers",
+              "E-commerce Brands",
               "UGC Creators",
               "Media Buyers", 
-              "DTC Brands",
-              "Marketing Agencies",
-              "Freelancers",
-              "E-commerce Stores"
+              "TikTok Advertisers",
+              "Shopify Stores"
             ].map((item, idx) => (
               <span 
                 key={idx}
@@ -569,6 +575,104 @@ const SocialProof = () => {
             ))}
           </div>
         </div>
+      </div>
+    </section>
+  );
+};
+
+// ==========================================
+// OBJECTION KILLERS
+// ==========================================
+const ObjectionKillers = () => {
+  const objections = [
+    {
+      objection: "\"I can judge my own ads\"",
+      response: "Can you? 90% of dropshippers think their hook is good—but data shows viewers scroll away in 1.5 seconds. Our AI catches blind spots you can't see because you're too close to your own work.",
+      icon: "fa-eye-slash"
+    },
+    {
+      objection: "\"AI can't understand creative\"",
+      response: "Our AI has analyzed 10,000+ winning ads across TikTok, Meta, and YouTube. It knows exactly what makes a hook grab attention, what pacing keeps people watching, and why your CTA isn't converting.",
+      icon: "fa-robot"
+    },
+    {
+      objection: "\"I'll just ask in a Facebook group\"",
+      response: "And wait 6 hours for generic advice like 'make your hook better'? We give you timestamp-specific fixes in 60 seconds. 'At 0:03, your text is unreadable. At 0:08, you lose viewers. Here's exactly how to fix it.'",
+      icon: "fa-users"
+    },
+    {
+      objection: "\"It's too expensive\"",
+      response: "One bad ad can waste $500+ in a day. One audit costs less than $2. If we help you fix even ONE issue that's burning your ad spend, you'll 10x your money back.",
+      icon: "fa-dollar-sign"
+    },
+    {
+      objection: "\"I don't have time for this\"",
+      response: "It takes 60 seconds. Upload your video, get your results. No calls to book, no reports to wait for. Faster than making a coffee.",
+      icon: "fa-clock"
+    },
+    {
+      objection: "\"What if it doesn't help?\"",
+      response: "Your first 3 audits are free. No credit card required. See the value before you pay anything. Plus, we offer a 14-day money-back guarantee on all paid plans.",
+      icon: "fa-shield-halved"
+    }
+  ];
+
+  return (
+    <section className="py-20 border-t border-white/5">
+      <div className="max-w-6xl mx-auto px-6">
+        <div className="text-center mb-12">
+          <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
+            Still Not Sure?
+          </h2>
+          <p className="text-gray-400 text-lg max-w-2xl mx-auto">
+            Let's address what's really holding you back.
+          </p>
+        </div>
+        
+        <div className="grid md:grid-cols-2 gap-6">
+          {objections.map((item, idx) => (
+            <motion.div
+              key={idx}
+              initial={{ opacity: 0, y: 20 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: idx * 0.05 }}
+              className="bg-[#0a0a0a] border border-white/10 rounded-2xl p-6 hover:border-[#00F2EA]/30 transition-colors"
+            >
+              <div className="flex items-start gap-4">
+                <div className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center flex-shrink-0">
+                  <i className={`fa-solid ${item.icon} text-red-400`}></i>
+                </div>
+                <div>
+                  <p className="text-red-400 font-bold mb-2">{item.objection}</p>
+                  <p className="text-gray-300 text-sm leading-relaxed">{item.response}</p>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+        </div>
+        
+        {/* Final push */}
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          whileInView={{ opacity: 1, y: 0 }}
+          viewport={{ once: true }}
+          className="mt-12 text-center"
+        >
+          <div className="bg-gradient-to-r from-[#00F2EA]/10 to-purple-500/10 border border-[#00F2EA]/20 rounded-2xl p-8">
+            <p className="text-white text-xl font-bold mb-2">The Bottom Line</p>
+            <p className="text-gray-400 mb-6 max-w-2xl mx-auto">
+              You're already spending money on ads. The only question is whether you want to keep guessing why they're not working, or find out in 60 seconds—for free.
+            </p>
+            <Link
+              to="/auth?mode=signup"
+              className="inline-flex items-center gap-2 bg-white text-black px-8 py-4 rounded-xl font-bold text-lg hover:scale-105 transition-transform"
+            >
+              <i className="fa-solid fa-bolt"></i>
+              Get My Free Audit
+            </Link>
+          </div>
+        </motion.div>
       </div>
     </section>
   );
@@ -651,17 +755,17 @@ const FinalCTA = () => {
     <section className="py-20 border-t border-white/5">
       <div className="max-w-4xl mx-auto px-6 text-center">
         <h2 className="text-4xl font-bold text-white mb-4">
-          Stop Wasting Ad Spend on<br />Creatives That Don't Convert
+          Your Competitors Are Already<br />Testing More Creatives Than You
         </h2>
         <p className="text-gray-400 text-xl mb-8 max-w-2xl mx-auto">
-          Get instant, AI-powered feedback on your video ads. Start with 3 free audits.
+          The difference? They know which ads will flop BEFORE spending money on them. Get your first 3 audits free—see why your ads aren't converting.
         </p>
         <div className="flex flex-col sm:flex-row gap-4 justify-center">
           <button
             onClick={() => navigate(user ? '/audit/new' : '/auth?mode=signup')}
             className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-8 py-4 rounded-xl font-bold text-lg hover:opacity-90 transition-opacity shadow-[0_0_30px_rgba(0,242,234,0.3)]"
           >
-            Start Free Trial
+            Audit My Ad Free
           </button>
           <a
             href="#pricing"
@@ -672,7 +776,7 @@ const FinalCTA = () => {
         </div>
         <p className="text-gray-500 text-sm mt-6">
           <i className="fa-solid fa-shield-check mr-2"></i>
-          No credit card required • Cancel anytime • 14-day money-back guarantee
+          No credit card required • Results in 60 seconds • 14-day money-back guarantee
         </p>
       </div>
     </section>
@@ -691,6 +795,7 @@ const LandingPage = () => {
       <HowItWorks />
       <Features />
       <SocialProof />
+      <ObjectionKillers />
       <Pricing />
       <FAQ />
       <FinalCTA />
