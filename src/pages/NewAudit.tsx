@@ -3,10 +3,11 @@ import { motion } from "framer-motion";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth, supabase } from "../context/AuthContext";
 import { useSubscription } from "../context/SubscriptionContext";
-import { AnalysisData, UploadStatus, DEFAULT_ANALYSIS } from "../types";
+import { AnalysisData, UploadStatus, DEFAULT_ANALYSIS, TechnicalAnalysis } from "../types";
 import DashboardLayout from "../components/DashboardLayout";
 import { compressVideo, isFFmpegSupported, CompressionResult } from "../utils/compression";
 import { openCheckout } from "../utils/lemonsqueezy";
+import { runTechnicalAnalysis, calculateTechnicalScore, countIssues } from "../utils/technicalAnalysis";
 
 // ==========================================
 // CONFIGURATION
@@ -74,8 +75,8 @@ Return ONLY valid JSON. No markdown. No code blocks.
     },
     "captions": {
       "score": <0-100>,
-      "feedback": "<Be brutal about the captions/subtitles. Are there any? Can you read them? Are they too small? Wrong color? Bad timing? Example: 'No captions at all - you just lost 85% of viewers who watch on mute. The text at 0:05 is white on a light background - impossible to read.'>",
-      "fix": "<Exact fix. Example: 'Add captions to the entire video. Use big, bold text with a dark outline so it's readable on any background. Make sure captions appear slightly BEFORE the words are spoken.'>"
+      "feedback": "<Be brutal about the captions/subtitles. If there are NO captions, this is a MAJOR problem - 85% of people watch on mute! If there ARE captions, check: Can you read them? Too small? Wrong color? Bad timing? Examples: 'No captions at all. 85% of people watch on mute. You just lost most of your audience.' or 'The captions at 0:05 are white text on a light background - impossible to read on a phone.'>",
+      "fix": "<Exact fix. If no captions: 'Add captions to EVERY word spoken. Use big, bold white text with a black outline. This is not optional - it's essential.' If bad captions: 'Make the text 2x bigger. Add a dark outline or background. Make sure captions appear slightly BEFORE the words are spoken.'>"
     }
   },
   "checks": [
@@ -288,6 +289,7 @@ const NewAudit = () => {
   const [statusMessage, setStatusMessage] = useState("");
   const [errorMessage, setErrorMessage] = useState("");
   const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
+  const [technicalAnalysis, setTechnicalAnalysis] = useState<TechnicalAnalysis | null>(null);
 
   const ffmpegSupported = isFFmpegSupported();
 
@@ -298,6 +300,17 @@ const NewAudit = () => {
   useEffect(() => {
     console.log(`🔧 FFmpeg.wasm supported: ${ffmpegSupported}`);
   }, []);
+
+  // Run technical analysis when file is selected
+  useEffect(() => {
+    if (file) {
+      runTechnicalAnalysis(file)
+        .then(setTechnicalAnalysis)
+        .catch(console.error);
+    } else {
+      setTechnicalAnalysis(null);
+    }
+  }, [file]);
 
   const runAnalysis = async () => {
     if (!file || !user) return;
@@ -316,6 +329,14 @@ const NewAudit = () => {
     }
 
     try {
+      // Stage 0: Technical Analysis (if not already done)
+      let techAnalysis = technicalAnalysis;
+      if (!techAnalysis) {
+        setStatusMessage("Analyzing video specs...");
+        techAnalysis = await runTechnicalAnalysis(file);
+        setTechnicalAnalysis(techAnalysis);
+      }
+
       // Stage 1: Compress
       setStatus("COMPRESSING");
       setProgress(0);
@@ -375,6 +396,9 @@ const NewAudit = () => {
       setProgress(100);
       setStatusMessage("Complete!");
 
+      // Add technical analysis to the data
+      data.technicalAnalysis = techAnalysis;
+
       // Save to database
       if (supabase) {
         const { data: insertedAudit, error } = await supabase
@@ -388,6 +412,7 @@ const NewAudit = () => {
             categories: data.categories,
             checks: data.checks,
             script_rewrite: data.scriptRewrite || null,
+            technical_analysis: techAnalysis || null,
           })
           .select()
           .single();
@@ -546,7 +571,95 @@ const NewAudit = () => {
                   </p>
                 </div>
               ) : (
-                <VideoPreview file={file} onRemove={() => setFile(null)} />
+                <>
+                  <VideoPreview file={file} onRemove={() => setFile(null)} />
+                  
+                  {/* Technical Specs Preview */}
+                  {technicalAnalysis && (
+                    <div className="bg-[#0a0a0a] border border-[#222] rounded-xl p-5">
+                      <div className="flex items-center justify-between mb-4">
+                        <div className="flex items-center gap-2">
+                          <i className="fa-solid fa-gear text-[#00F2EA]"></i>
+                          <span className="text-white font-bold">Technical Specs</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {(() => {
+                            const issues = countIssues(technicalAnalysis);
+                            if (issues.fails > 0) {
+                              return (
+                                <span className="px-2 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-bold">
+                                  {issues.fails} issue{issues.fails > 1 ? 's' : ''} found
+                                </span>
+                              );
+                            } else if (issues.warns > 0) {
+                              return (
+                                <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded-full text-xs font-bold">
+                                  {issues.warns} warning{issues.warns > 1 ? 's' : ''}
+                                </span>
+                              );
+                            } else {
+                              return (
+                                <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-bold">
+                                  All checks passed
+                                </span>
+                              );
+                            }
+                          })()}
+                        </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 md:grid-cols-3 gap-3">
+                        {Object.entries(technicalAnalysis).map(([key, check]) => (
+                          <div 
+                            key={key}
+                            className={`p-3 rounded-lg border ${
+                              check.status === 'FAIL' 
+                                ? 'bg-red-500/5 border-red-500/20' 
+                                : check.status === 'WARN'
+                                  ? 'bg-yellow-500/5 border-yellow-500/20'
+                                  : 'bg-green-500/5 border-green-500/20'
+                            }`}
+                          >
+                            <div className="flex items-center gap-2 mb-1">
+                              <i className={`fa-solid ${
+                                check.status === 'FAIL' ? 'fa-xmark text-red-400' :
+                                check.status === 'WARN' ? 'fa-exclamation text-yellow-400' :
+                                'fa-check text-green-400'
+                              } text-xs`}></i>
+                              <span className="text-gray-400 text-xs">{check.label}</span>
+                            </div>
+                            <p className={`text-sm font-bold ${
+                              check.status === 'FAIL' ? 'text-red-400' :
+                              check.status === 'WARN' ? 'text-yellow-400' :
+                              'text-white'
+                            }`}>{check.value}</p>
+                          </div>
+                        ))}
+                      </div>
+                      
+                      {/* Show critical issues */}
+                      {(() => {
+                        const criticalIssues = Object.values(technicalAnalysis).filter(c => c.status === 'FAIL');
+                        if (criticalIssues.length > 0) {
+                          return (
+                            <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
+                              <p className="text-red-400 text-sm font-bold mb-2">
+                                <i className="fa-solid fa-triangle-exclamation mr-2"></i>
+                                Critical Issues Detected
+                              </p>
+                              {criticalIssues.map((issue, idx) => (
+                                <p key={idx} className="text-gray-300 text-sm mb-1">
+                                  <span className="text-red-400 font-bold">{issue.label}:</span> {issue.fix}
+                                </p>
+                              ))}
+                            </div>
+                          );
+                        }
+                        return null;
+                      })()}
+                    </div>
+                  )}
+                </>
               )}
 
               <button
