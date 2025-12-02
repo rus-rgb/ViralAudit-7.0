@@ -119,8 +119,13 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const { user, stats } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionState>(DEFAULT_STATE);
 
+  console.log('🚀 SubscriptionProvider mounted, user:', user?.id, 'stats:', stats);
+
   const fetchSubscription = useCallback(async () => {
+    console.log('🔄 fetchSubscription called, user:', user?.id);
+    
     if (!user || !supabase) {
+      console.log('⚠️ No user or supabase, setting default');
       setSubscription(prev => ({ 
         ...DEFAULT_STATE, 
         loading: false,
