@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "../context/AuthContext";
+import { useSubscription } from "../context/SubscriptionContext";
 
 // ==========================================
 // SIDEBAR NAV ITEM
@@ -12,12 +13,14 @@ const NavItem = ({
   label,
   active,
   onClick,
+  badge,
 }: {
   to?: string;
   icon: string;
   label: string;
   active?: boolean;
   onClick?: () => void;
+  badge?: string;
 }) => {
   const baseClasses =
     "flex items-center gap-3 px-4 py-3 rounded-xl transition-all text-sm font-medium";
@@ -27,7 +30,12 @@ const NavItem = ({
   const content = (
     <>
       <i className={`${icon} w-5 text-center`}></i>
-      <span>{label}</span>
+      <span className="flex-1">{label}</span>
+      {badge && (
+        <span className="bg-[#00F2EA] text-black text-xs font-bold px-2 py-0.5 rounded-full">
+          {badge}
+        </span>
+      )}
     </>
   );
 
@@ -51,9 +59,17 @@ const NavItem = ({
 // ==========================================
 const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const { user, logout, stats } = useAuth();
+  const subscription = useSubscription();
   const location = useLocation();
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
+
+  // Debug log
+  console.log('🎨 DashboardLayout subscription:', { 
+    plan: subscription.plan, 
+    status: subscription.status, 
+    loading: subscription.loading 
+  });
 
   const handleLogout = async () => {
     await logout();
@@ -63,7 +79,13 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const navItems = [
     { to: "/dashboard", icon: "fa-solid fa-chart-bar", label: "Dashboard" },
     { to: "/audit/new", icon: "fa-solid fa-plus-circle", label: "New Audit" },
+    { to: "/billing", icon: "fa-solid fa-credit-card", label: "Billing" },
   ];
+
+  // Plan display name - use actual plan value, not default
+  const planName = subscription.loading ? 'Loading...' :
+    subscription.plan === 'free' ? 'Free Plan' : 
+    subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1) + ' Plan';
 
   return (
     <div className="min-h-screen bg-black flex">
@@ -106,14 +128,37 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
           ))}
         </nav>
 
-        {/* Stats Badge */}
-        {stats && (
-          <div className="mx-4 mb-4 p-4 bg-[#111] rounded-xl border border-[#222]">
-            <p className="text-xs text-gray-500 uppercase tracking-wider mb-2">This Month</p>
-            <p className="text-2xl font-bold text-white">{stats.audits_this_month}</p>
-            <p className="text-xs text-gray-500">audits completed</p>
+        {/* Usage Stats */}
+        <div className="mx-4 mb-4 p-4 bg-[#111] rounded-xl border border-[#222]">
+          <div className="flex justify-between items-center mb-2">
+            <p className="text-xs text-gray-500 uppercase tracking-wider">Audits</p>
+            <p className="text-xs text-gray-500">
+              {subscription.auditsPerMonth === 999999 ? '∞' : subscription.auditsPerMonth}/mo
+            </p>
           </div>
-        )}
+          <div className="flex items-end gap-2 mb-2">
+            <p className="text-2xl font-bold text-white">{stats?.audits_this_month || 0}</p>
+            <p className="text-sm text-gray-500 mb-1">used</p>
+          </div>
+          {/* Usage bar */}
+          <div className="h-1.5 bg-[#222] rounded-full overflow-hidden">
+            <div 
+              className={`h-full rounded-full transition-all ${
+                subscription.auditsRemaining <= 0 ? 'bg-red-500' : 
+                subscription.auditsRemaining <= 3 ? 'bg-yellow-500' : 'bg-[#00F2EA]'
+              }`}
+              style={{ 
+                width: subscription.auditsPerMonth === 999999 ? '5%' : 
+                  `${Math.min(100, ((stats?.audits_this_month || 0) / subscription.auditsPerMonth) * 100)}%` 
+              }}
+            />
+          </div>
+          {subscription.plan === 'free' && subscription.auditsRemaining <= 1 && (
+            <Link to="/billing" className="text-[#00F2EA] text-xs mt-2 block hover:underline">
+              Upgrade for more →
+            </Link>
+          )}
+        </div>
 
         {/* User Section */}
         <div className="p-4 border-t border-[#1a1a1a]">
@@ -123,7 +168,9 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
             </div>
             <div className="flex-1 min-w-0">
               <p className="text-white text-sm font-medium truncate">{user?.email}</p>
-              <p className="text-gray-500 text-xs">Free Plan</p>
+              <p className={`text-xs ${subscription.plan === 'free' ? 'text-gray-500' : 'text-[#00F2EA]'}`}>
+                {planName}
+              </p>
             </div>
           </div>
           <NavItem onClick={handleLogout} icon="fa-solid fa-right-from-bracket" label="Log Out" />
