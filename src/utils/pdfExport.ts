@@ -186,6 +186,72 @@ export const generateAuditPDF = (audit: AuditRecord, whiteLabel: boolean = false
   });
 
   // ==========================================
+  // TECHNICAL SPECS
+  // ==========================================
+  if (audit.technical_analysis) {
+    y += 5;
+    doc.setFontSize(14);
+    doc.setTextColor(...colors.dark);
+    doc.setFont('helvetica', 'bold');
+    doc.text('Technical Specs', margin, y);
+    y += 10;
+
+    const techChecks = Object.values(audit.technical_analysis) as any[];
+    const failedTech = techChecks.filter(c => c.status === 'FAIL');
+    const warnTech = techChecks.filter(c => c.status === 'WARN');
+    const passTech = techChecks.filter(c => c.status === 'PASS');
+
+    // Summary line
+    doc.setFontSize(9);
+    doc.setFont('helvetica', 'normal');
+    
+    if (failedTech.length > 0) {
+      doc.setTextColor(...colors.red);
+      doc.text(`${failedTech.length} issue(s)`, margin, y);
+    } else if (warnTech.length > 0) {
+      doc.setTextColor(...colors.yellow);
+      doc.text(`${warnTech.length} warning(s)`, margin, y);
+    } else {
+      doc.setTextColor(...colors.green);
+      doc.text('All checks passed', margin, y);
+    }
+    y += 8;
+
+    // List each check
+    techChecks.forEach((check) => {
+      if (y > 260) {
+        doc.addPage();
+        y = margin;
+      }
+
+      let statusColor = colors.green;
+      if (check.status === 'WARN') statusColor = colors.yellow;
+      if (check.status === 'FAIL') statusColor = colors.red;
+
+      doc.setFontSize(9);
+      doc.setTextColor(...statusColor);
+      doc.setFont('helvetica', 'bold');
+      const statusSymbol = check.status === 'PASS' ? '✓' : check.status === 'WARN' ? '!' : '✗';
+      doc.text(`${statusSymbol} ${check.label}: `, margin, y);
+      
+      doc.setTextColor(...colors.dark);
+      doc.setFont('helvetica', 'normal');
+      doc.text(check.value, margin + 35, y);
+      y += 6;
+
+      // Show fix for failed/warned items
+      if (check.status !== 'PASS' && check.fix) {
+        doc.setFontSize(8);
+        doc.setTextColor(...colors.gray);
+        y = addWrappedText(`→ ${check.fix}`, margin + 5, y, contentWidth - 10, 4);
+        y += 3;
+      }
+    });
+
+    y += 5;
+  }
+
+  // ==========================================
   // DIAGNOSTIC CHECKS
   // ==========================================
   // Check if we need a new page
