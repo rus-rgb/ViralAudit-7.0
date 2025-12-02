@@ -119,13 +119,8 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
   const { user, stats } = useAuth();
   const [subscription, setSubscription] = useState<SubscriptionState>(DEFAULT_STATE);
 
-  console.log('🚀 SubscriptionProvider mounted, user:', user?.id, 'stats:', stats);
-
   const fetchSubscription = useCallback(async () => {
-    console.log('🔄 fetchSubscription called, user:', user?.id);
-    
     if (!user || !supabase) {
-      console.log('⚠️ No user or supabase, setting default');
       setSubscription(prev => ({ 
         ...DEFAULT_STATE, 
         loading: false,
@@ -135,18 +130,11 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
     }
 
     try {
-      // Try to fetch subscription data from profiles table
-      // This might fail if the columns don't exist yet
-      console.log('🔍 Fetching subscription for user:', user.id);
-      
       const { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', user.id)
         .single();
-
-      console.log('📦 Raw profile data:', data);
-      console.log('❌ Query error:', error);
 
       // Default to free plan
       let plan: PlanType = 'free';
@@ -165,8 +153,6 @@ export const SubscriptionProvider = ({ children }: { children: React.ReactNode }
         endsAt = data.subscription_ends_at || null;
         customerId = data.lemonsqueezy_customer_id || null;
         subscriptionId = data.lemonsqueezy_subscription_id || null;
-        
-        console.log('📊 Subscription data loaded:', { plan, status, customerId });
       }
 
       // Get limits for this plan
