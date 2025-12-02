@@ -26,11 +26,11 @@ interface LemonSqueezyEvent {
 // Store is approved and ready
 const STORE_IS_READY = true;
 
-// Lemon Squeezy checkout URLs with variant IDs
+// Lemon Squeezy checkout URLs
 const CHECKOUT_URLS: Record<string, string> = {
-  solo: 'https://viralaudit.lemonsqueezy.com/buy/1120267',
-  pro: 'https://viralaudit.lemonsqueezy.com/buy/1120270',
-  agency: 'https://viralaudit.lemonsqueezy.com/buy/1120272',
+  solo: 'https://viralaudit-ai.lemonsqueezy.com/buy/ef67a047-4604-42b4-b8f1-3e640c9268e8',
+  pro: 'https://viralaudit-ai.lemonsqueezy.com/buy/e95826a6-eef0-4384-832c-00b301196937',
+  agency: 'https://viralaudit-ai.lemonsqueezy.com/buy/ffee3f7c-2894-45c4-914b-07ada34bc2d2',
 };
 
 // Plan details for display
