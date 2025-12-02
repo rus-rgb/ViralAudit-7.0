@@ -64,13 +64,6 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
   const navigate = useNavigate();
   const [sidebarOpen, setSidebarOpen] = useState(false);
 
-  // Debug log
-  console.log('🎨 DashboardLayout subscription:', { 
-    plan: subscription.plan, 
-    status: subscription.status, 
-    loading: subscription.loading 
-  });
-
   const handleLogout = async () => {
     await logout();
     navigate("/");
@@ -82,7 +75,7 @@ const DashboardLayout = ({ children }: { children: React.ReactNode }) => {
     { to: "/billing", icon: "fa-solid fa-credit-card", label: "Billing" },
   ];
 
-  // Plan display name - use actual plan value, not default
+  // Plan display name
   const planName = subscription.loading ? 'Loading...' :
     subscription.plan === 'free' ? 'Free Plan' : 
     subscription.plan.charAt(0).toUpperCase() + subscription.plan.slice(1) + ' Plan';
