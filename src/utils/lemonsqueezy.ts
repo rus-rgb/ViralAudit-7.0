@@ -95,7 +95,7 @@ export const initLemonSqueezy = (onSuccess?: () => void) => {
 };
 
 // ==========================================
-// OPEN CHECKOUT OVERLAY
+// OPEN CHECKOUT
 // ==========================================
 export const openCheckout = (
   plan: 'solo' | 'pro' | 'agency',
@@ -108,22 +108,14 @@ export const openCheckout = (
 ) => {
   const baseUrl = CHECKOUT_URLS[plan];
   
-  if (!baseUrl || baseUrl.includes('YOUR_')) {
+  if (!baseUrl || baseUrl.includes('REPLACE_')) {
     console.error('⚠️ Checkout URL not configured for plan:', plan);
     alert('Payment not configured yet. Please contact support.');
     return;
   }
 
-  // Initialize Lemon Squeezy if needed
-  if (window.createLemonSqueezy) {
-    window.createLemonSqueezy();
-  }
-
   // Build checkout URL with custom data
   const checkoutUrl = new URL(baseUrl);
-  
-  // Add embed parameter for overlay mode
-  checkoutUrl.searchParams.set('embed', '1');
   
   // Pass user data that will be included in webhooks
   checkoutUrl.searchParams.set('checkout[custom][user_id]', userId);
@@ -141,14 +133,8 @@ export const openCheckout = (
 
   console.log('🍋 Opening Lemon Squeezy checkout:', checkoutUrl.toString());
 
-  // Open the checkout overlay
-  if (window.LemonSqueezy?.Url) {
-    window.LemonSqueezy.Url.Open(checkoutUrl.toString());
-  } else {
-    // Fallback: open in new tab
-    console.warn('Lemon Squeezy not initialized, opening in new tab');
-    window.open(checkoutUrl.toString(), '_blank');
-  }
+  // Open in new tab (more reliable than overlay)
+  window.open(checkoutUrl.toString(), '_blank');
 };
 
 // ==========================================
