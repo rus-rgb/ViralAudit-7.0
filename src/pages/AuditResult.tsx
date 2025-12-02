@@ -376,6 +376,90 @@ const AuditResult = () => {
           </motion.div>
         )}
 
+        {/* ==================== TECHNICAL SPECS ==================== */}
+        {audit.technical_analysis && (
+          <motion.div
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.15 }}
+            className="bg-gradient-to-br from-[#0d0d0d] to-[#111] border border-[#1a1a1a] rounded-2xl p-6 mb-8"
+          >
+            <div className="flex items-center gap-3 mb-5">
+              <div className="w-10 h-10 bg-[#00F2EA]/20 rounded-xl flex items-center justify-center">
+                <i className="fa-solid fa-gear text-[#00F2EA]"></i>
+              </div>
+              <div>
+                <h3 className="text-white font-bold">Technical Specs</h3>
+                <p className="text-gray-500 text-xs">Platform compatibility checks</p>
+              </div>
+            </div>
+            
+            <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3">
+              {Object.entries(audit.technical_analysis).map(([key, check]: [string, any]) => (
+                <div 
+                  key={key}
+                  className={`p-4 rounded-xl border ${
+                    check.status === 'FAIL' 
+                      ? 'bg-red-500/5 border-red-500/20' 
+                      : check.status === 'WARN'
+                        ? 'bg-yellow-500/5 border-yellow-500/20'
+                        : 'bg-green-500/5 border-green-500/20'
+                  }`}
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <i className={`fa-solid ${
+                      check.status === 'FAIL' ? 'fa-xmark text-red-400' :
+                      check.status === 'WARN' ? 'fa-exclamation text-yellow-400' :
+                      'fa-check text-green-400'
+                    } text-xs`}></i>
+                    <span className="text-gray-400 text-xs font-medium">{check.label}</span>
+                  </div>
+                  <p className={`text-sm font-bold ${
+                    check.status === 'FAIL' ? 'text-red-400' :
+                    check.status === 'WARN' ? 'text-yellow-400' :
+                    'text-white'
+                  }`}>{check.value}</p>
+                </div>
+              ))}
+            </div>
+            
+            {/* Show issues with fixes */}
+            {(() => {
+              const issues = Object.values(audit.technical_analysis).filter((c: any) => c.status !== 'PASS' && c.fix);
+              if (issues.length > 0) {
+                return (
+                  <div className="mt-5 pt-5 border-t border-[#222] space-y-3">
+                    {issues.map((issue: any, idx) => (
+                      <div key={idx} className={`p-4 rounded-xl border ${
+                        issue.status === 'FAIL' ? 'bg-red-500/5 border-red-500/20' : 'bg-yellow-500/5 border-yellow-500/20'
+                      }`}>
+                        <div className="flex items-start gap-3">
+                          <i className={`fa-solid ${
+                            issue.status === 'FAIL' ? 'fa-xmark text-red-400' : 'fa-exclamation text-yellow-400'
+                          } mt-1`}></i>
+                          <div>
+                            <p className={`font-bold text-sm mb-1 ${
+                              issue.status === 'FAIL' ? 'text-red-400' : 'text-yellow-400'
+                            }`}>{issue.label}: {issue.value}</p>
+                            <p className="text-gray-300 text-sm">{issue.details}</p>
+                            {issue.fix && (
+                              <p className="text-gray-400 text-sm mt-2">
+                                <span className="text-[#00F2EA] font-bold">Fix: </span>
+                                {issue.fix}
+                              </p>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
+              return null;
+            })()}
+          </motion.div>
+        )}
+
         {/* ==================== CATEGORY BREAKDOWN ==================== */}
         <div className="mb-8">
           <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
