@@ -2,6 +2,8 @@
 // LEMON SQUEEZY CHECKOUT UTILITIES
 // ==========================================
 
+import { trackInitiateCheckout } from './tiktok';
+
 declare global {
   interface Window {
     createLemonSqueezy?: () => void;
@@ -107,12 +109,16 @@ export const openCheckout = (
   }
 ) => {
   const baseUrl = CHECKOUT_URLS[plan];
+  const planDetails = PLAN_DETAILS[plan];
   
   if (!baseUrl || baseUrl.includes('REPLACE_')) {
     console.error('⚠️ Checkout URL not configured for plan:', plan);
     alert('Payment not configured yet. Please contact support.');
     return;
   }
+
+  // Track InitiateCheckout for TikTok
+  trackInitiateCheckout(plan, planDetails.price);
 
   // Build checkout URL with custom data
   const checkoutUrl = new URL(baseUrl);
