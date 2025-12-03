@@ -4,7 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import { useAuth } from "../context/AuthContext";
 import { openCheckout } from "../utils/lemonsqueezy";
 
-const auditExample = "/audit-example.png";
+// Screenshots
+const screenshot1 = "/screenshot-1.png";
+const screenshot2 = "/screenshot-2.png";
+const screenshot3 = "/screenshot-3.png";
 
 // ==========================================
 // BACKGROUND - Clean, minimal
@@ -107,19 +110,38 @@ const Hero = () => {
           </p>
         </motion.div>
         
-        {/* Screenshot */}
+        {/* Screenshots Gallery */}
         <motion.div 
           initial={{ opacity: 0, y: 40 }} 
           animate={{ opacity: 1, y: 0 }} 
           transition={{ duration: 0.6, delay: 0.2 }}
-          className="mt-16 relative"
+          className="mt-16"
         >
-          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50">
+          {/* Main Screenshot */}
+          <div className="relative rounded-2xl overflow-hidden border border-white/10 shadow-2xl shadow-black/50 mb-4">
             <img 
-              src={auditExample} 
-              alt="ViralAudit analysis showing detailed feedback"
+              src={screenshot1} 
+              alt="ViralAudit score and verdict showing detailed analysis"
               className="w-full h-auto"
             />
+          </div>
+          
+          {/* Secondary Screenshots */}
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl shadow-black/30">
+              <img 
+                src={screenshot2} 
+                alt="Category breakdown with detailed feedback on visuals, audio, copy and captions"
+                className="w-full h-auto"
+              />
+            </div>
+            <div className="relative rounded-xl overflow-hidden border border-white/10 shadow-xl shadow-black/30">
+              <img 
+                src={screenshot3} 
+                alt="Diagnostic checks showing first 3 seconds, retention, value proposition and CTA analysis"
+                className="w-full h-auto"
+              />
+            </div>
           </div>
         </motion.div>
       </div>
