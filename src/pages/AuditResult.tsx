@@ -43,7 +43,7 @@ const ScoreCircle = ({ score, size = "lg" }: { score: number; size?: "sm" | "lg"
           strokeLinecap="round"
         />
       </svg>
-      <span className={`absolute ${isLarge ? 'text-4xl' : 'text-2xl'} font-bold text-white`}>{safeScore}</span>
+      <span className={`absolute ${isLarge ? 'text-4xl' : 'text-2xl'} font-medium text-white`}>{safeScore}</span>
     </div>
   );
 };
@@ -59,7 +59,7 @@ const ScoreBar = ({ score, label }: { score: number; label: string }) => {
 
   return (
     <div className="flex items-center gap-3">
-      <span className="text-gray-400 text-sm w-20">{label}</span>
+      <span className="text-zinc-400 text-sm w-20">{label}</span>
       <div className="flex-1 h-2 bg-[#222] rounded-full overflow-hidden">
         <motion.div
           className={`h-full ${color} rounded-full`}
@@ -68,7 +68,7 @@ const ScoreBar = ({ score, label }: { score: number; label: string }) => {
           transition={{ duration: 0.8, ease: "easeOut" }}
         />
       </div>
-      <span className={`${textColor} font-bold text-sm w-12 text-right`}>{score}%</span>
+      <span className={`${textColor} font-medium text-sm w-12 text-right`}>{score}%</span>
     </div>
   );
 };
@@ -85,7 +85,7 @@ const StatusBadge = ({ status }: { status: string }) => {
   const { bg, text, icon } = config[status] || config.WARN;
 
   return (
-    <span className={`${bg} ${text} px-3 py-1.5 rounded-full text-xs font-bold inline-flex items-center gap-1.5`}>
+    <span className={`${bg} ${text} px-3 py-1.5 rounded-full text-xs font-medium inline-flex items-center gap-1.5`}>
       <i className={`fa-solid ${icon}`}></i>
       {status}
     </span>
@@ -129,9 +129,9 @@ const CategoryCard = ({
           <div className={`w-10 h-10 rounded-xl ${scoreBg} flex items-center justify-center`}>
             <i className={`fa-solid ${icon} ${scoreColor}`}></i>
           </div>
-          <span className="font-bold text-white">{title}</span>
+          <span className="font-medium text-white">{title}</span>
         </div>
-        <div className={`${scoreBg} ${scoreColor} px-4 py-2 rounded-xl font-bold text-lg`}>
+        <div className={`${scoreBg} ${scoreColor} px-4 py-2 rounded-xl font-medium text-lg`}>
           {score}%
         </div>
       </div>
@@ -144,10 +144,10 @@ const CategoryCard = ({
         
         {/* Fix Box */}
         {fix && (
-          <div className={`bg-[#111] border ${borderColor} rounded-xl p-4`}>
+          <div className={`bg-white/[0.02] border ${borderColor} rounded-xl p-4`}>
             <div className="flex items-center gap-2 mb-2">
-              <i className="fa-solid fa-wrench text-[#00F2EA] text-xs"></i>
-              <span className="text-[#00F2EA] text-xs font-bold uppercase">How to Fix</span>
+              <i className="fa-solid fa-wrench text-white text-xs"></i>
+              <span className="text-white text-xs font-medium uppercase">How to Fix</span>
             </div>
             <p className="text-gray-300 text-sm leading-relaxed">{fix}</p>
           </div>
@@ -234,7 +234,7 @@ const AuditResult = () => {
     return (
       <DashboardLayout>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-[#333] border-t-[#00F2EA] rounded-full animate-spin"></div>
+          <div className="w-12 h-12 border-4 border-white/10 border-t-[white] rounded-full animate-spin"></div>
         </div>
       </DashboardLayout>
     );
@@ -248,9 +248,9 @@ const AuditResult = () => {
             <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
               <i className="fa-solid fa-triangle-exclamation text-2xl text-red-500"></i>
             </div>
-            <h2 className="text-xl font-bold text-white mb-2">Audit Not Found</h2>
-            <p className="text-gray-500 mb-4">{error || "This audit doesn't exist or you don't have access."}</p>
-            <Link to="/dashboard" className="text-[#00F2EA] hover:underline">
+            <h2 className="text-xl font-medium text-white mb-2">Audit Not Found</h2>
+            <p className="text-zinc-500 mb-4">{error || "This audit doesn't exist or you don't have access."}</p>
+            <Link to="/dashboard" className="text-white hover:underline">
               Back to Dashboard
             </Link>
           </div>
@@ -269,18 +269,18 @@ const AuditResult = () => {
         {/* ==================== HEADER ==================== */}
         <div className="flex flex-col lg:flex-row justify-between items-start lg:items-center gap-4 mb-8">
           <div>
-            <Link to="/dashboard" className="text-gray-500 hover:text-white text-sm mb-2 inline-flex items-center gap-2 transition-colors">
+            <Link to="/dashboard" className="text-zinc-500 hover:text-white text-sm mb-2 inline-flex items-center gap-2 transition-colors">
               <i className="fa-solid fa-arrow-left"></i>
               Back to Dashboard
             </Link>
-            <h1 className="text-2xl font-bold text-white truncate max-w-md">{audit.video_name}</h1>
-            <p className="text-gray-500 text-sm mt-1">{formatDate(audit.created_at)}</p>
+            <h1 className="text-2xl font-medium text-white truncate max-w-md">{audit.video_name}</h1>
+            <p className="text-zinc-500 text-sm mt-1">{formatDate(audit.created_at)}</p>
           </div>
           <div className="flex gap-3">
             {subscription.canExportPdf ? (
               <button
                 onClick={() => generateAuditPDF(audit)}
-                className="bg-[#111] border border-[#222] text-white px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a1a1a] transition-colors flex items-center gap-2"
+                className="bg-white/[0.02] border border-white/5 text-white px-5 py-2.5 rounded-xl font-medium hover:bg-white/5 transition-colors flex items-center gap-2"
               >
                 <i className="fa-solid fa-file-pdf"></i>
                 Export PDF
@@ -288,17 +288,17 @@ const AuditResult = () => {
             ) : (
               <button
                 onClick={() => user && openCheckout('solo', user.id, user.email || '')}
-                className="bg-[#111] border border-[#222] text-gray-400 px-5 py-2.5 rounded-xl font-medium hover:bg-[#1a1a1a] transition-colors flex items-center gap-2 group"
+                className="bg-white/[0.02] border border-white/5 text-zinc-400 px-5 py-2.5 rounded-xl font-medium hover:bg-white/5 transition-colors flex items-center gap-2 group"
               >
                 <i className="fa-solid fa-lock group-hover:hidden"></i>
                 <i className="fa-solid fa-unlock hidden group-hover:inline"></i>
                 <span>Export PDF</span>
-                <span className="text-xs bg-[#00F2EA]/20 text-[#00F2EA] px-2 py-0.5 rounded-full">PRO</span>
+                <span className="text-xs bg-white/20 text-white px-2 py-0.5 rounded-full">PRO</span>
               </button>
             )}
             <Link
               to="/audit/new"
-              className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-5 py-2.5 rounded-xl font-bold hover:opacity-90 transition-opacity flex items-center gap-2"
+              className="bg-white text-black px-5 py-2.5 rounded-xl font-medium hover:opacity-90 transition-opacity flex items-center gap-2"
             >
               <i className="fa-solid fa-plus"></i>
               New Audit
@@ -316,14 +316,14 @@ const AuditResult = () => {
             {/* Score Circle */}
             <div className="flex flex-col items-center lg:items-start">
               <ScoreCircle score={audit.overall_score} />
-              <p className="text-gray-500 text-xs uppercase tracking-widest mt-3 text-center">Overall Score</p>
+              <p className="text-zinc-500 text-xs uppercase tracking-widest mt-3 text-center">Overall Score</p>
             </div>
             
             {/* Verdict + Score Bars */}
             <div className="space-y-6">
               {/* Verdict */}
               <div>
-                <p className="text-xs font-bold text-gray-500 uppercase tracking-widest mb-2">
+                <p className="text-xs font-medium text-zinc-500 uppercase tracking-widest mb-2">
                   Creative Director's Verdict
                 </p>
                 <p className="text-xl lg:text-2xl font-medium text-white leading-relaxed">
@@ -332,7 +332,7 @@ const AuditResult = () => {
               </div>
               
               {/* Score Bars */}
-              <div className="space-y-3 pt-4 border-t border-[#222]">
+              <div className="space-y-3 pt-4 border-t border-white/5">
                 <ScoreBar score={audit.categories?.visual?.score || 0} label="Visuals" />
                 <ScoreBar score={audit.categories?.audio?.score || 0} label="Audio" />
                 <ScoreBar score={audit.categories?.copy?.score || 0} label="Copy" />
@@ -355,7 +355,7 @@ const AuditResult = () => {
                 <i className="fa-solid fa-fire text-red-400"></i>
               </div>
               <div>
-                <h3 className="text-white font-bold">Priority Fixes</h3>
+                <h3 className="text-white font-medium">Priority Fixes</h3>
                 <p className="text-red-400 text-xs">Fix these first for maximum impact</p>
               </div>
             </div>
@@ -363,12 +363,12 @@ const AuditResult = () => {
             <div className="space-y-4">
               {failedChecks.slice(0, 3).map((check, idx) => (
                 <div key={idx} className="flex gap-4">
-                  <div className="flex-shrink-0 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-bold text-sm">
+                  <div className="flex-shrink-0 w-8 h-8 bg-red-500 rounded-full flex items-center justify-center text-white font-medium text-sm">
                     {idx + 1}
                   </div>
                   <div className="flex-1 min-w-0">
                     <p className="text-white font-semibold text-sm mb-1">{check.label}</p>
-                    <p className="text-gray-400 text-sm leading-relaxed">{check.fix}</p>
+                    <p className="text-zinc-400 text-sm leading-relaxed">{check.fix}</p>
                   </div>
                 </div>
               ))}
@@ -385,12 +385,12 @@ const AuditResult = () => {
             className="bg-gradient-to-br from-[#0d0d0d] to-[#111] border border-[#1a1a1a] rounded-2xl p-6 mb-8"
           >
             <div className="flex items-center gap-3 mb-5">
-              <div className="w-10 h-10 bg-[#00F2EA]/20 rounded-xl flex items-center justify-center">
-                <i className="fa-solid fa-gear text-[#00F2EA]"></i>
+              <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center">
+                <i className="fa-solid fa-gear text-white"></i>
               </div>
               <div>
-                <h3 className="text-white font-bold">Technical Specs</h3>
-                <p className="text-gray-500 text-xs">Platform compatibility checks</p>
+                <h3 className="text-white font-medium">Technical Specs</h3>
+                <p className="text-zinc-500 text-xs">Platform compatibility checks</p>
               </div>
             </div>
             
@@ -412,9 +412,9 @@ const AuditResult = () => {
                       check.status === 'WARN' ? 'fa-exclamation text-yellow-400' :
                       'fa-check text-green-400'
                     } text-xs`}></i>
-                    <span className="text-gray-400 text-xs font-medium">{check.label}</span>
+                    <span className="text-zinc-400 text-xs font-medium">{check.label}</span>
                   </div>
-                  <p className={`text-sm font-bold ${
+                  <p className={`text-sm font-medium ${
                     check.status === 'FAIL' ? 'text-red-400' :
                     check.status === 'WARN' ? 'text-yellow-400' :
                     'text-white'
@@ -428,7 +428,7 @@ const AuditResult = () => {
               const issues = Object.values(audit.technical_analysis).filter((c: any) => c.status !== 'PASS' && c.fix);
               if (issues.length > 0) {
                 return (
-                  <div className="mt-5 pt-5 border-t border-[#222] space-y-3">
+                  <div className="mt-5 pt-5 border-t border-white/5 space-y-3">
                     {issues.map((issue: any, idx) => (
                       <div key={idx} className={`p-4 rounded-xl border ${
                         issue.status === 'FAIL' ? 'bg-red-500/5 border-red-500/20' : 'bg-yellow-500/5 border-yellow-500/20'
@@ -438,13 +438,13 @@ const AuditResult = () => {
                             issue.status === 'FAIL' ? 'fa-xmark text-red-400' : 'fa-exclamation text-yellow-400'
                           } mt-1`}></i>
                           <div>
-                            <p className={`font-bold text-sm mb-1 ${
+                            <p className={`font-medium text-sm mb-1 ${
                               issue.status === 'FAIL' ? 'text-red-400' : 'text-yellow-400'
                             }`}>{issue.label}: {issue.value}</p>
                             <p className="text-gray-300 text-sm">{issue.details}</p>
                             {issue.fix && (
-                              <p className="text-gray-400 text-sm mt-2">
-                                <span className="text-[#00F2EA] font-bold">Fix: </span>
+                              <p className="text-zinc-400 text-sm mt-2">
+                                <span className="text-white font-medium">Fix: </span>
                                 {issue.fix}
                               </p>
                             )}
@@ -462,8 +462,8 @@ const AuditResult = () => {
 
         {/* ==================== CATEGORY BREAKDOWN ==================== */}
         <div className="mb-8">
-          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
-            <i className="fa-solid fa-chart-pie text-[#00F2EA]"></i>
+          <h2 className="text-lg font-medium text-white mb-5 flex items-center gap-2">
+            <i className="fa-solid fa-chart-pie text-white"></i>
             Category Breakdown
           </h2>
           
@@ -492,8 +492,8 @@ const AuditResult = () => {
 
         {/* ==================== DIAGNOSTIC CHECKS ==================== */}
         <div className="mb-8">
-          <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
-            <i className="fa-solid fa-clipboard-check text-[#00F2EA]"></i>
+          <h2 className="text-lg font-medium text-white mb-5 flex items-center gap-2">
+            <i className="fa-solid fa-clipboard-check text-white"></i>
             Diagnostic Checks
           </h2>
           
@@ -508,7 +508,7 @@ const AuditResult = () => {
               >
                 {/* Check Header */}
                 <div className="p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-3 border-b border-[#1a1a1a]">
-                  <h3 className="font-bold text-white flex items-center gap-2">
+                  <h3 className="font-medium text-white flex items-center gap-2">
                     {check.status === 'PASS' && <i className="fa-solid fa-circle-check text-green-500"></i>}
                     {check.status === 'WARN' && <i className="fa-solid fa-triangle-exclamation text-yellow-500"></i>}
                     {check.status === 'FAIL' && <i className="fa-solid fa-circle-xmark text-red-500"></i>}
@@ -522,10 +522,10 @@ const AuditResult = () => {
                   <p className="text-gray-300 text-sm leading-relaxed mb-4">{check.details}</p>
                   
                   {check.fix && (
-                    <div className="bg-[#00F2EA]/5 border border-[#00F2EA]/20 rounded-xl p-4">
+                    <div className="bg-white/5 border border-[white]/20 rounded-xl p-4">
                       <div className="flex items-center gap-2 mb-2">
-                        <i className="fa-solid fa-lightbulb text-[#00F2EA] text-sm"></i>
-                        <span className="text-[#00F2EA] text-xs font-bold uppercase">How to Fix</span>
+                        <i className="fa-solid fa-lightbulb text-white text-sm"></i>
+                        <span className="text-white text-xs font-medium uppercase">How to Fix</span>
                       </div>
                       <p className="text-gray-300 text-sm leading-relaxed">{check.fix}</p>
                     </div>
@@ -543,7 +543,7 @@ const AuditResult = () => {
             animate={{ opacity: 1, y: 0 }}
             className="mb-8"
           >
-            <h2 className="text-lg font-bold text-white mb-5 flex items-center gap-2">
+            <h2 className="text-lg font-medium text-white mb-5 flex items-center gap-2">
               <i className="fa-solid fa-wand-magic-sparkles text-purple-400"></i>
               Script Rewrite
             </h2>
@@ -555,12 +555,12 @@ const AuditResult = () => {
                 <div className="p-6">
                   <div className="flex items-center gap-2 mb-4">
                     <div className="w-8 h-8 bg-gray-500/10 rounded-lg flex items-center justify-center">
-                      <i className="fa-solid fa-file-lines text-gray-400 text-sm"></i>
+                      <i className="fa-solid fa-file-lines text-zinc-400 text-sm"></i>
                     </div>
-                    <span className="text-gray-400 font-bold text-sm uppercase">Original Script</span>
+                    <span className="text-zinc-400 font-medium text-sm uppercase">Original Script</span>
                   </div>
-                  <div className="bg-[#111] border border-[#222] rounded-xl p-4">
-                    <p className="text-gray-400 text-sm leading-relaxed whitespace-pre-wrap">{audit.script_rewrite.original}</p>
+                  <div className="bg-white/[0.02] border border-white/5 rounded-xl p-4">
+                    <p className="text-zinc-400 text-sm leading-relaxed whitespace-pre-wrap">{audit.script_rewrite.original}</p>
                   </div>
                 </div>
                 
@@ -570,7 +570,7 @@ const AuditResult = () => {
                     <div className="w-8 h-8 bg-green-500/10 rounded-lg flex items-center justify-center">
                       <i className="fa-solid fa-sparkles text-green-400 text-sm"></i>
                     </div>
-                    <span className="text-green-400 font-bold text-sm uppercase">Improved Script</span>
+                    <span className="text-green-400 font-medium text-sm uppercase">Improved Script</span>
                   </div>
                   <div className="bg-green-500/5 border border-green-500/20 rounded-xl p-4">
                     <p className="text-white text-sm leading-relaxed whitespace-pre-wrap">{audit.script_rewrite.improved}</p>
@@ -580,10 +580,10 @@ const AuditResult = () => {
               
               {/* Key Changes */}
               {audit.script_rewrite.changes && audit.script_rewrite.changes.length > 0 && (
-                <div className="p-6 border-t border-[#1a1a1a] bg-[#0a0a0a]">
+                <div className="p-6 border-t border-[#1a1a1a] bg-white/[0.03]">
                   <div className="flex items-center gap-2 mb-4">
-                    <i className="fa-solid fa-check-double text-[#00F2EA]"></i>
-                    <span className="text-[#00F2EA] font-bold text-sm uppercase">Key Changes</span>
+                    <i className="fa-solid fa-check-double text-white"></i>
+                    <span className="text-white font-medium text-sm uppercase">Key Changes</span>
                   </div>
                   <div className="grid sm:grid-cols-2 gap-3">
                     {audit.script_rewrite.changes.map((change, idx) => (
@@ -603,14 +603,14 @@ const AuditResult = () => {
         <div className="flex flex-col sm:flex-row gap-4 justify-center pt-4">
           <Link
             to="/audit/new"
-            className="bg-[#111] border border-[#222] text-white px-8 py-4 rounded-xl font-medium hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2"
+            className="bg-white/[0.02] border border-white/5 text-white px-8 py-4 rounded-xl font-medium hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-rotate-right"></i>
             Audit Another Video
           </Link>
           <Link
             to="/dashboard"
-            className="bg-[#111] border border-[#222] text-white px-8 py-4 rounded-xl font-medium hover:bg-[#1a1a1a] transition-colors flex items-center justify-center gap-2"
+            className="bg-white/[0.02] border border-white/5 text-white px-8 py-4 rounded-xl font-medium hover:bg-white/5 transition-colors flex items-center justify-center gap-2"
           >
             <i className="fa-solid fa-chart-bar"></i>
             View All Audits
