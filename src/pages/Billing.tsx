@@ -28,29 +28,29 @@ const PlanCard = ({
 
   return (
     <div
-      className={`relative bg-[#111] border rounded-xl p-6 transition-all ${
+      className={`relative bg-white/[0.02] border rounded-xl p-5 transition-all ${
         isCurrentPlan
-          ? 'border-[#00F2EA] shadow-[0_0_20px_rgba(0,242,234,0.1)]'
-          : 'border-[#222] hover:border-[#333]'
+          ? 'border-amber-500/50'
+          : 'border-white/5 hover:border-white/10'
       }`}
     >
       {isCurrentPlan && (
-        <div className="absolute -top-3 left-4 bg-[#00F2EA] text-black text-xs font-bold px-3 py-1 rounded-full">
-          CURRENT PLAN
+        <div className="absolute -top-3 left-4 bg-amber-500 text-black text-xs font-medium px-3 py-1 rounded-full">
+          Current
         </div>
       )}
 
-      <h3 className="text-xl font-bold text-white mb-2">{details.name}</h3>
+      <h3 className="text-lg font-medium text-white mb-1">{details.name}</h3>
       
       <div className="mb-4">
-        <span className="text-3xl font-bold text-white">${details.price}</span>
-        {isPaid && <span className="text-gray-500">/month</span>}
+        <span className="text-2xl font-semibold text-white">${details.price}</span>
+        {isPaid && <span className="text-zinc-500 text-sm">/mo</span>}
       </div>
 
-      <ul className="space-y-2 mb-6">
+      <ul className="space-y-2 mb-5">
         {details.features.map((feature, idx) => (
-          <li key={idx} className="flex items-center gap-2 text-gray-400 text-sm">
-            <i className="fa-solid fa-check text-green-500"></i>
+          <li key={idx} className="flex items-center gap-2 text-zinc-500 text-sm">
+            <i className="fa-solid fa-check text-zinc-600 text-xs"></i>
             {feature}
           </li>
         ))}
@@ -59,18 +59,18 @@ const PlanCard = ({
       {!isCurrentPlan && isPaid && (
         <button
           onClick={onSelect}
-          className="w-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black py-2 rounded-lg font-bold hover:opacity-90 transition-opacity"
+          className="w-full bg-white text-black py-2 rounded-lg font-medium hover:bg-zinc-200 transition-colors text-sm"
         >
-          {plan === 'free' ? 'Downgrade' : 'Upgrade'}
+          Upgrade
         </button>
       )}
 
       {isCurrentPlan && isPaid && (
         <button
           onClick={openCustomerPortal}
-          className="w-full bg-[#1a1a1a] border border-[#333] text-white py-2 rounded-lg font-medium hover:bg-[#222] transition-colors"
+          className="w-full bg-white/5 border border-white/10 text-white py-2 rounded-lg font-medium hover:bg-white/10 transition-colors text-sm"
         >
-          Manage Subscription
+          Manage
         </button>
       )}
     </div>
@@ -93,28 +93,28 @@ const UsageMeter = ({
   const isUnlimited = total === 999999;
 
   return (
-    <div className="bg-[#111] border border-[#222] rounded-xl p-6">
+    <div className="bg-white/[0.02] border border-white/5 rounded-xl p-5">
       <div className="flex justify-between items-center mb-3">
-        <span className="text-gray-400 text-sm">{label}</span>
-        <span className="text-white font-mono">
+        <span className="text-zinc-500 text-sm">{label}</span>
+        <span className="text-white font-mono text-sm">
           {used} / {isUnlimited ? '∞' : total}
         </span>
       </div>
-      <div className="h-2 bg-[#222] rounded-full overflow-hidden">
+      <div className="h-1.5 bg-white/5 rounded-full overflow-hidden">
         <div
           className={`h-full rounded-full transition-all ${
             percentage > 90
               ? 'bg-red-500'
               : percentage > 70
-              ? 'bg-yellow-500'
-              : 'bg-[#00F2EA]'
+              ? 'bg-amber-500'
+              : 'bg-zinc-500'
           }`}
           style={{ width: `${isUnlimited ? 5 : percentage}%` }}
         />
       </div>
       {percentage > 80 && !isUnlimited && (
-        <p className="text-yellow-500 text-xs mt-2">
-          ⚠️ You're running low on audits
+        <p className="text-amber-400 text-xs mt-2">
+          Running low on audits
         </p>
       )}
     </div>
@@ -150,7 +150,7 @@ const Billing = () => {
     return (
       <DashboardLayout>
         <div className="min-h-[60vh] flex items-center justify-center">
-          <div className="w-12 h-12 border-4 border-[#333] border-t-[#00F2EA] rounded-full animate-spin"></div>
+          <div className="w-8 h-8 border-2 border-zinc-800 border-t-zinc-500 rounded-full animate-spin"></div>
         </div>
       </DashboardLayout>
     );
@@ -158,32 +158,32 @@ const Billing = () => {
 
   return (
     <DashboardLayout>
-      <div className="p-6 lg:p-8 max-w-5xl mx-auto">
+      <div className="p-6 lg:p-8 max-w-4xl mx-auto">
         {/* Header */}
         <div className="mb-8">
-          <h1 className="text-2xl font-bold text-white mb-2">Billing & Subscription</h1>
-          <p className="text-gray-500">Manage your plan and view usage</p>
+          <h1 className="text-2xl font-semibold text-white mb-1">Billing</h1>
+          <p className="text-zinc-500">Manage your subscription and usage</p>
         </div>
 
         {/* Current Plan Status */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          className="bg-gradient-to-r from-[#00F2EA]/10 to-purple-900/10 border border-[#00F2EA]/20 rounded-2xl p-6 mb-8"
+          className="bg-white/[0.02] border border-white/5 rounded-xl p-5 mb-6"
         >
           <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-              <p className="text-gray-400 text-sm mb-1">Current Plan</p>
-              <h2 className="text-3xl font-bold text-white capitalize">{subscription.plan}</h2>
-              <p className="text-gray-400 mt-1">
+              <p className="text-zinc-500 text-sm mb-1">Current Plan</p>
+              <h2 className="text-2xl font-semibold text-white capitalize">{subscription.plan}</h2>
+              <p className="text-zinc-500 text-sm mt-1">
                 Status:{' '}
                 <span
                   className={`capitalize ${
                     subscription.status === 'active'
                       ? 'text-green-400'
                       : subscription.status === 'cancelled'
-                      ? 'text-yellow-400'
-                      : 'text-gray-400'
+                      ? 'text-amber-400'
+                      : 'text-zinc-400'
                   }`}
                 >
                   {subscription.status}
@@ -192,12 +192,12 @@ const Billing = () => {
             </div>
             <div className="text-right">
               {subscription.renewsAt && subscription.status === 'active' && (
-                <p className="text-gray-400 text-sm">
-                  Renews on {formatDate(subscription.renewsAt)}
+                <p className="text-zinc-500 text-sm">
+                  Renews {formatDate(subscription.renewsAt)}
                 </p>
               )}
               {subscription.endsAt && subscription.status === 'cancelled' && (
-                <p className="text-yellow-400 text-sm">
+                <p className="text-amber-400 text-sm">
                   Access until {formatDate(subscription.endsAt)}
                 </p>
               )}
@@ -221,7 +221,7 @@ const Billing = () => {
 
         {/* Plan Selection */}
         <div className="mb-8">
-          <h3 className="text-lg font-bold text-white mb-4">Choose Your Plan</h3>
+          <h3 className="text-base font-medium text-white mb-4">Plans</h3>
           <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
             {(['solo', 'pro', 'agency'] as const).map((plan) => (
               <PlanCard
@@ -234,90 +234,47 @@ const Billing = () => {
           </div>
         </div>
 
-        {/* Feature Access */}
-        <div className="bg-[#111] border border-[#222] rounded-xl p-6 mb-8">
-          <h3 className="text-lg font-bold text-white mb-4">Your Features</h3>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-            {[
-              { label: 'PDF Export', enabled: subscription.canExportPdf },
-              { label: 'Script Rewrites', enabled: subscription.hasScriptRewrites },
-              { label: 'Competitor Analysis', enabled: subscription.hasCompetitorBreakdowns },
-              { label: 'Priority Support', enabled: subscription.hasPrioritySupport },
-              { label: 'API Access', enabled: subscription.canAccessApi },
-              { label: 'White Label', enabled: subscription.hasWhiteLabel },
-              { label: 'Team Seats', enabled: subscription.teamSeats > 1, value: subscription.teamSeats },
-            ].map((feature, idx) => (
-              <div
-                key={idx}
-                className={`p-3 rounded-lg ${
-                  feature.enabled
-                    ? 'bg-green-500/10 border border-green-500/20'
-                    : 'bg-[#1a1a1a] border border-[#333]'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <i
-                    className={`fa-solid ${
-                      feature.enabled ? 'fa-check text-green-500' : 'fa-lock text-gray-500'
-                    }`}
-                  ></i>
-                  <span className={feature.enabled ? 'text-white' : 'text-gray-500'}>
-                    {feature.label}
-                    {feature.value && ` (${feature.value})`}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
         {/* Billing Actions */}
-        <div className="flex flex-wrap gap-4">
-          {subscription.plan !== 'free' && (
-            <>
-              <button
-                onClick={openCustomerPortal}
-                className="bg-[#1a1a1a] border border-[#333] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2"
-              >
-                <i className="fa-solid fa-credit-card"></i>
-                Update Payment Method
-              </button>
-              <button
-                onClick={openCustomerPortal}
-                className="bg-[#1a1a1a] border border-[#333] text-white px-6 py-3 rounded-lg font-medium hover:bg-[#222] transition-colors flex items-center gap-2"
-              >
-                <i className="fa-solid fa-file-invoice"></i>
-                View Invoices
-              </button>
-            </>
-          )}
-        </div>
+        {subscription.plan !== 'free' && (
+          <div className="flex flex-wrap gap-3 mb-8">
+            <button
+              onClick={openCustomerPortal}
+              className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <i className="fa-solid fa-credit-card text-xs"></i>
+              Update Payment
+            </button>
+            <button
+              onClick={openCustomerPortal}
+              className="bg-white/5 border border-white/10 text-white px-4 py-2 rounded-lg text-sm font-medium hover:bg-white/10 transition-colors flex items-center gap-2"
+            >
+              <i className="fa-solid fa-file-invoice text-xs"></i>
+              View Invoices
+            </button>
+          </div>
+        )}
 
         {/* FAQ */}
-        <div className="mt-12">
-          <h3 className="text-lg font-bold text-white mb-4">Billing FAQ</h3>
-          <div className="space-y-4">
+        <div>
+          <h3 className="text-base font-medium text-white mb-4">FAQ</h3>
+          <div className="space-y-3">
             {[
               {
-                q: 'How do I cancel my subscription?',
-                a: 'Click "Manage Subscription" above to access the customer portal where you can cancel anytime.',
+                q: 'How do I cancel?',
+                a: 'Click "Manage" on your plan to access the portal where you can cancel anytime.',
               },
               {
                 q: 'What happens when I cancel?',
-                a: "You'll keep access until the end of your billing period. Your data is never deleted.",
+                a: "You keep access until the end of your billing period.",
               },
               {
                 q: 'Can I get a refund?',
-                a: 'We offer a 14-day money-back guarantee. Contact support for refunds.',
-              },
-              {
-                q: 'How do I upgrade my plan?',
-                a: "Click on the plan you want above. You'll only be charged the prorated difference.",
+                a: '14-day money-back guarantee on all plans. Contact support.',
               },
             ].map((faq, idx) => (
-              <div key={idx} className="bg-[#111] border border-[#222] rounded-lg p-4">
-                <h4 className="text-white font-medium mb-1">{faq.q}</h4>
-                <p className="text-gray-400 text-sm">{faq.a}</p>
+              <div key={idx} className="bg-white/[0.02] border border-white/5 rounded-lg p-4">
+                <h4 className="text-white text-sm font-medium mb-1">{faq.q}</h4>
+                <p className="text-zinc-500 text-sm">{faq.a}</p>
               </div>
             ))}
           </div>
