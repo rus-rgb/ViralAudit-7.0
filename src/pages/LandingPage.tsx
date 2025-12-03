@@ -366,7 +366,7 @@ const Pricing = () => {
       popular: false
     },
     {
-      name: "Growth",
+      name: "Pro",
       price: "$99",
       period: "/month",
       desc: "For brands scaling ad spend",
@@ -388,7 +388,7 @@ const Pricing = () => {
       desc: "For agencies & high-volume teams",
       audits: "Unlimited audits",
       features: [
-        "Everything in Growth",
+        "Everything in Pro",
         "White-label reports",
         "Team collaboration",
         "API access",
