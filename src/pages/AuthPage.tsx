@@ -2,7 +2,7 @@
 // LEMON SQUEEZY CHECKOUT UTILITIES
 // ==========================================
 
-import { trackInitiateCheckout } from './tiktok';
+import { trackSignUp } from "../utils/tiktok";
 
 declare global {
   interface Window {
