@@ -195,12 +195,12 @@ const analyzeVideo = async (
 const ProgressBar = ({ progress, label }: { progress: number; label: string }) => (
   <div className="w-full max-w-md mx-auto">
     <div className="flex justify-between text-sm mb-2">
-      <span className="text-gray-400">{label}</span>
-      <span className="text-[#00F2EA] font-mono">{progress}%</span>
+      <span className="text-zinc-400">{label}</span>
+      <span className="text-white font-mono">{progress}%</span>
     </div>
     <div className="h-3 bg-[#222] rounded-full overflow-hidden">
       <motion.div
-        className="h-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4]"
+        className="h-full bg-white"
         initial={{ width: 0 }}
         animate={{ width: `${progress}%` }}
         transition={{ duration: 0.3 }}
@@ -239,14 +239,14 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
   const needsCompression = file.size > 20 * 1024 * 1024;
 
   return (
-    <div className="bg-[#1a1a1a] rounded-xl p-4 border border-[#333]">
+    <div className="bg-white/5 rounded-xl p-4 border border-white/10">
       <div className="flex items-center gap-4">
         <div className="relative w-24 h-16 bg-black rounded-lg overflow-hidden flex-shrink-0">
           {thumbnail ? (
             <img src={thumbnail} alt="Preview" className="w-full h-full object-cover" />
           ) : (
             <div className="w-full h-full flex items-center justify-center">
-              <i className="fa-solid fa-video text-gray-600"></i>
+              <i className="fa-solid fa-video text-zinc-600"></i>
             </div>
           )}
           {duration && (
@@ -257,7 +257,7 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
         </div>
         <div className="flex-1 min-w-0">
           <p className="text-white font-medium truncate">{file.name}</p>
-          <p className="text-gray-500 text-sm">
+          <p className="text-zinc-500 text-sm">
             {(file.size / 1024 / 1024).toFixed(1)} MB
             {needsCompression && (
               <span className="text-yellow-500 ml-2">
@@ -267,7 +267,7 @@ const VideoPreview = ({ file, onRemove }: { file: File; onRemove: () => void }) 
             )}
           </p>
         </div>
-        <button onClick={onRemove} className="p-2 text-gray-500 hover:text-red-500 transition-colors">
+        <button onClick={onRemove} className="p-2 text-zinc-500 hover:text-red-500 transition-colors">
           <i className="fa-solid fa-trash"></i>
         </button>
       </div>
@@ -460,7 +460,7 @@ const NewAudit = () => {
       case 'skipped':
         return { text: 'No Compression', color: 'text-blue-400 bg-blue-400/10', icon: 'fa-solid fa-forward' };
       default:
-        return { text: 'Unknown', color: 'text-gray-400 bg-gray-400/10', icon: 'fa-solid fa-question' };
+        return { text: 'Unknown', color: 'text-zinc-400 bg-gray-400/10', icon: 'fa-solid fa-question' };
     }
   };
 
@@ -479,10 +479,10 @@ const NewAudit = () => {
                 <i className="fa-solid fa-lock text-red-400 text-xl"></i>
               </div>
               <div className="flex-1">
-                <h3 className="text-lg font-bold text-white mb-1">
+                <h3 className="text-lg font-medium text-white mb-1">
                   You've used all your audits this month
                 </h3>
-                <p className="text-gray-400 text-sm mb-4">
+                <p className="text-zinc-400 text-sm mb-4">
                   {subscription.plan === 'free' 
                     ? `Your free plan includes ${subscription.auditsPerMonth} audits per month.`
                     : `Your ${subscription.plan} plan includes ${subscription.auditsPerMonth} audits per month.`
@@ -492,7 +492,7 @@ const NewAudit = () => {
                 <div className="flex gap-3">
                   <button
                     onClick={() => user && openCheckout('pro', user.id, user.email || '')}
-                    className="bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black px-5 py-2 rounded-lg font-bold hover:opacity-90 transition-opacity"
+                    className="bg-white text-black px-5 py-2 rounded-lg font-medium hover:opacity-90 transition-opacity"
                   >
                     Upgrade to Pro
                   </button>
@@ -512,8 +512,8 @@ const NewAudit = () => {
         <div className="mb-8">
           <div className="flex justify-between items-start">
             <div>
-              <h1 className="text-2xl font-bold text-white mb-2">New Audit</h1>
-              <p className="text-gray-500">
+              <h1 className="text-2xl font-medium text-white mb-2">New Audit</h1>
+              <p className="text-zinc-500">
                 Upload a video ad to get AI-powered feedback
                 {ffmpegSupported ? (
                   <span className="ml-2 text-green-500 text-xs">
@@ -545,13 +545,13 @@ const NewAudit = () => {
         </div>
 
         {/* Main Card */}
-        <div className="bg-[#111] border border-[#222] rounded-2xl p-8">
+        <div className="bg-white/[0.02] border border-white/5 rounded-2xl p-8">
           {/* IDLE State */}
           {status === "IDLE" && (
             <div className="space-y-6">
               {!file ? (
                 <div
-                  className="border-2 border-dashed border-[#333] bg-[#0a0a0a] rounded-xl p-12 cursor-pointer hover:border-[#00F2EA] hover:bg-[#111] transition-all text-center"
+                  className="border-2 border-dashed border-white/10 bg-white/[0.03] rounded-xl p-12 cursor-pointer hover:border-white/20 hover:bg-white/[0.02] transition-all text-center"
                   onClick={() => document.getElementById("vid-upload")?.click()}
                 >
                   <input
@@ -561,12 +561,12 @@ const NewAudit = () => {
                     accept="video/*"
                     onChange={(e) => setFile(e.target.files?.[0] || null)}
                   />
-                  <div className="w-16 h-16 bg-[#1a1a1a] rounded-full flex items-center justify-center mx-auto mb-4">
-                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-[#00F2EA]"></i>
+                  <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto mb-4">
+                    <i className="fa-solid fa-cloud-arrow-up text-3xl text-white"></i>
                   </div>
-                  <h4 className="text-white text-xl font-bold mb-2">Upload Video Ad</h4>
-                  <p className="text-gray-500 text-sm">MP4, MOV, WebM • Up to 500MB</p>
-                  <p className="text-gray-600 text-xs mt-2">
+                  <h4 className="text-white text-xl font-medium mb-2">Upload Video Ad</h4>
+                  <p className="text-zinc-500 text-sm">MP4, MOV, WebM • Up to 500MB</p>
+                  <p className="text-zinc-600 text-xs mt-2">
                     Large files will be automatically compressed
                   </p>
                 </div>
@@ -576,30 +576,30 @@ const NewAudit = () => {
                   
                   {/* Technical Specs Preview */}
                   {technicalAnalysis && (
-                    <div className="bg-[#0a0a0a] border border-[#222] rounded-xl p-5">
+                    <div className="bg-white/[0.03] border border-white/5 rounded-xl p-5">
                       <div className="flex items-center justify-between mb-4">
                         <div className="flex items-center gap-2">
-                          <i className="fa-solid fa-gear text-[#00F2EA]"></i>
-                          <span className="text-white font-bold">Technical Specs</span>
+                          <i className="fa-solid fa-gear text-white"></i>
+                          <span className="text-white font-medium">Technical Specs</span>
                         </div>
                         <div className="flex items-center gap-2">
                           {(() => {
                             const issues = countIssues(technicalAnalysis);
                             if (issues.fails > 0) {
                               return (
-                                <span className="px-2 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-bold">
+                                <span className="px-2 py-1 bg-red-500/10 text-red-400 rounded-full text-xs font-medium">
                                   {issues.fails} issue{issues.fails > 1 ? 's' : ''} found
                                 </span>
                               );
                             } else if (issues.warns > 0) {
                               return (
-                                <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded-full text-xs font-bold">
+                                <span className="px-2 py-1 bg-yellow-500/10 text-yellow-400 rounded-full text-xs font-medium">
                                   {issues.warns} warning{issues.warns > 1 ? 's' : ''}
                                 </span>
                               );
                             } else {
                               return (
-                                <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-bold">
+                                <span className="px-2 py-1 bg-green-500/10 text-green-400 rounded-full text-xs font-medium">
                                   All checks passed
                                 </span>
                               );
@@ -626,9 +626,9 @@ const NewAudit = () => {
                                 check.status === 'WARN' ? 'fa-exclamation text-yellow-400' :
                                 'fa-check text-green-400'
                               } text-xs`}></i>
-                              <span className="text-gray-400 text-xs">{check.label}</span>
+                              <span className="text-zinc-400 text-xs">{check.label}</span>
                             </div>
-                            <p className={`text-sm font-bold ${
+                            <p className={`text-sm font-medium ${
                               check.status === 'FAIL' ? 'text-red-400' :
                               check.status === 'WARN' ? 'text-yellow-400' :
                               'text-white'
@@ -643,13 +643,13 @@ const NewAudit = () => {
                         if (criticalIssues.length > 0) {
                           return (
                             <div className="mt-4 p-3 bg-red-500/10 border border-red-500/20 rounded-lg">
-                              <p className="text-red-400 text-sm font-bold mb-2">
+                              <p className="text-red-400 text-sm font-medium mb-2">
                                 <i className="fa-solid fa-triangle-exclamation mr-2"></i>
                                 Critical Issues Detected
                               </p>
                               {criticalIssues.map((issue, idx) => (
                                 <p key={idx} className="text-gray-300 text-sm mb-1">
-                                  <span className="text-red-400 font-bold">{issue.label}:</span> {issue.fix}
+                                  <span className="text-red-400 font-medium">{issue.label}:</span> {issue.fix}
                                 </p>
                               ))}
                             </div>
@@ -665,7 +665,7 @@ const NewAudit = () => {
               <button
                 onClick={runAnalysis}
                 disabled={!file || !hasAuditsRemaining}
-                className="w-full bg-gradient-to-r from-[#00F2EA] to-[#00D4D4] text-black font-bold py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
+                className="w-full bg-white text-black font-medium py-4 rounded-xl disabled:opacity-50 disabled:cursor-not-allowed hover:opacity-90 transition-opacity flex items-center justify-center gap-2"
               >
                 {hasAuditsRemaining ? (
                   <>
@@ -686,19 +686,19 @@ const NewAudit = () => {
           {(status === "COMPRESSING" || status === "UPLOADING" || status === "ANALYZING") && (
             <div className="py-12 text-center">
               <div className="relative w-24 h-24 mx-auto mb-8">
-                <div className="absolute inset-0 bg-[#00F2EA] rounded-full opacity-20 animate-ping"></div>
-                <div className="relative w-24 h-24 bg-[#161616] border-2 border-[#00F2EA] rounded-full flex items-center justify-center">
-                  <i className={`${getStatusIcon()} text-3xl text-[#00F2EA] ${status === "ANALYZING" ? "animate-pulse" : ""}`}></i>
+                <div className="absolute inset-0 bg-white/30 rounded-full opacity-20 animate-ping"></div>
+                <div className="relative w-24 h-24 bg-zinc-900 border-2 border-white/20 rounded-full flex items-center justify-center">
+                  <i className={`${getStatusIcon()} text-3xl text-white ${status === "ANALYZING" ? "animate-pulse" : ""}`}></i>
                 </div>
               </div>
 
-              <h2 className="text-2xl font-bold text-white mb-2">
+              <h2 className="text-2xl font-medium text-white mb-2">
                 {status === "COMPRESSING" && "Compressing Video"}
                 {status === "UPLOADING" && "Uploading"}
                 {status === "ANALYZING" && "Analyzing"}
               </h2>
               
-              <p className="text-gray-400 mb-6">{statusMessage}</p>
+              <p className="text-zinc-400 mb-6">{statusMessage}</p>
 
               <ProgressBar
                 progress={progress}
@@ -710,7 +710,7 @@ const NewAudit = () => {
               />
 
               {status === "COMPRESSING" && (
-                <p className="text-sm text-gray-500 mt-6">
+                <p className="text-sm text-zinc-500 mt-6">
                   <i className={`${ffmpegSupported ? 'fa-solid fa-bolt text-green-500' : 'fa-solid fa-palette text-yellow-500'} mr-2`}></i>
                   {ffmpegSupported 
                     ? "Using FFmpeg.wasm (fast)"
@@ -719,12 +719,12 @@ const NewAudit = () => {
               )}
 
               {compressionResult && status !== "COMPRESSING" && compressionResult.method !== 'skipped' && (
-                <div className="mt-4 p-4 bg-[#1a1a1a] rounded-lg inline-block">
+                <div className="mt-4 p-4 bg-white/5 rounded-lg inline-block">
                   <div className="flex items-center gap-3 mb-2">
                     {(() => {
                       const badge = getMethodBadge(compressionResult.method);
                       return (
-                        <span className={`px-2 py-1 rounded text-xs font-bold ${badge.color}`}>
+                        <span className={`px-2 py-1 rounded text-xs font-medium ${badge.color}`}>
                           <i className={`${badge.icon} mr-1`}></i>
                           {badge.text}
                         </span>
@@ -734,7 +734,7 @@ const NewAudit = () => {
                   <p className="text-sm text-green-400">
                     <i className="fa-solid fa-check mr-2"></i>
                     {(compressionResult.originalSize / 1024 / 1024).toFixed(1)}MB → {(compressionResult.compressedSize / 1024 / 1024).toFixed(1)}MB
-                    <span className="text-gray-500 ml-2">
+                    <span className="text-zinc-500 ml-2">
                       ({((1 - compressionResult.compressedSize / compressionResult.originalSize) * 100).toFixed(0)}% smaller in {compressionResult.duration.toFixed(1)}s)
                     </span>
                   </p>
@@ -749,11 +749,11 @@ const NewAudit = () => {
               <div className="w-16 h-16 bg-red-500/10 rounded-full flex items-center justify-center mx-auto mb-4">
                 <i className="fa-solid fa-triangle-exclamation text-3xl text-red-500"></i>
               </div>
-              <h3 className="text-red-500 font-bold text-xl mb-2">Analysis Failed</h3>
-              <p className="text-gray-400 mb-6 max-w-md mx-auto">{errorMessage}</p>
+              <h3 className="text-red-500 font-medium text-xl mb-2">Analysis Failed</h3>
+              <p className="text-zinc-400 mb-6 max-w-md mx-auto">{errorMessage}</p>
               <button
                 onClick={reset}
-                className="bg-white text-black px-6 py-3 rounded-lg font-bold hover:bg-gray-200 transition-colors"
+                className="bg-white text-black px-6 py-3 rounded-lg font-medium hover:bg-gray-200 transition-colors"
               >
                 Try Again
               </button>
@@ -762,12 +762,12 @@ const NewAudit = () => {
         </div>
 
         {/* Tips */}
-        <div className="mt-6 bg-[#111] border border-[#222] rounded-xl p-4">
+        <div className="mt-6 bg-white/[0.02] border border-white/5 rounded-xl p-4">
           <h4 className="text-white font-medium mb-2 flex items-center gap-2">
             <i className="fa-solid fa-lightbulb text-yellow-500"></i>
             Tips for faster analysis
           </h4>
-          <ul className="text-gray-500 text-sm space-y-1">
+          <ul className="text-zinc-500 text-sm space-y-1">
             <li>• Videos under 20MB skip compression entirely</li>
             <li>• MP4 format processes fastest</li>
             <li>• 720p resolution is optimal for analysis</li>
