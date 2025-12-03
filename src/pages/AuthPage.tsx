@@ -1,141 +1,177 @@
-import React, { useState, useEffect } from "react";
-import { motion } from "framer-motion";
-import { Link, useNavigate, useSearchParams } from "react-router-dom";
-import { useAuth } from "../context/AuthContext";
+// ==========================================
+// LEMON SQUEEZY CHECKOUT UTILITIES
+// ==========================================
 
-const AuthPage = () => {
-  const [searchParams] = useSearchParams();
-  const navigate = useNavigate();
-  const { user, login, signup } = useAuth();
+import { trackInitiateCheckout } from './tiktok';
 
-  const [mode, setMode] = useState<'login' | 'signup'>(
-    searchParams.get('mode') === 'signup' ? 'signup' : 'login'
-  );
-  const [email, setEmail] = useState("");
-  const [password, setPassword] = useState("");
-  const [error, setError] = useState("");
-  const [loading, setLoading] = useState(false);
+declare global {
+  interface Window {
+    createLemonSqueezy?: () => void;
+    LemonSqueezy?: {
+      Url: {
+        Open: (url: string) => void;
+      };
+      Setup: (options: { eventHandler: (event: LemonSqueezyEvent) => void }) => void;
+    };
+  }
+}
 
-  // Redirect if already logged in
-  useEffect(() => {
-    if (user) {
-      navigate('/dashboard');
-    }
-  }, [user, navigate]);
+interface LemonSqueezyEvent {
+  event: 'Checkout.Success' | 'Checkout.Close' | 'PaymentMethodUpdate.Close';
+  data?: any;
+}
 
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    setError("");
+// ==========================================
+// CONFIGURATION
+// ==========================================
 
-    const result = mode === 'login' 
-      ? await login(email, password)
-      : await signup(email, password);
+// Store is approved and ready
+const STORE_IS_READY = true;
 
-    setLoading(false);
-
-    if (result.error) {
-      setError(result.error.message);
-    } else {
-      navigate('/dashboard');
-    }
-  };
-
-  return (
-    <div className="min-h-screen bg-[#0a0a0a] flex items-center justify-center p-4">
-      {/* Background */}
-      <div className="fixed inset-0 z-[-1]">
-        <div className="absolute inset-0 bg-[linear-gradient(to_right,#ffffff03_1px,transparent_1px),linear-gradient(to_bottom,#ffffff03_1px,transparent_1px)] bg-[size:60px_60px]"></div>
-      </div>
-
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        className="w-full max-w-md"
-      >
-        {/* Logo */}
-        <Link to="/" className="block text-center mb-8">
-          <span className="font-semibold text-2xl text-white tracking-tight">ViralAudit</span>
-        </Link>
-
-        {/* Card */}
-        <div className="bg-[#0a0a0a] border border-white/10 p-8 rounded-2xl">
-          <h1 className="text-2xl font-semibold text-white mb-2">
-            {mode === 'login' ? 'Welcome back' : 'Create your account'}
-          </h1>
-          <p className="text-zinc-500 mb-6">
-            {mode === 'login' 
-              ? 'Enter your credentials to continue'
-              : 'Start analyzing your video ads for free'
-            }
-          </p>
-
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Email</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-white placeholder-zinc-600 focus:border-white/20 focus:outline-none transition-colors"
-                placeholder="you@example.com"
-                required
-              />
-            </div>
-
-            <div>
-              <label className="block text-sm text-zinc-400 mb-2">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-white/5 border border-white/10 p-3 rounded-lg text-white placeholder-zinc-600 focus:border-white/20 focus:outline-none transition-colors"
-                placeholder="••••••••"
-                required
-                minLength={6}
-              />
-            </div>
-
-            {error && (
-              <div className="flex items-center gap-2 text-red-400 text-sm bg-red-500/10 p-3 rounded-lg">
-                <i className="fa-solid fa-circle-exclamation"></i>
-                {error}
-              </div>
-            )}
-
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full bg-white text-black font-medium py-3 rounded-lg hover:bg-zinc-200 transition-colors disabled:opacity-50 flex items-center justify-center gap-2"
-            >
-              {loading && <i className="fa-solid fa-spinner animate-spin"></i>}
-              {mode === 'login' ? 'Sign In' : 'Create Account'}
-            </button>
-          </form>
-
-          <div className="mt-6 text-center">
-            <p className="text-zinc-500 text-sm">
-              {mode === 'login' ? "Don't have an account? " : "Already have an account? "}
-              <button
-                onClick={() => setMode(mode === 'login' ? 'signup' : 'login')}
-                className="text-white hover:underline"
-              >
-                {mode === 'login' ? 'Sign up' : 'Sign in'}
-              </button>
-            </p>
-          </div>
-        </div>
-
-        {/* Back to home */}
-        <div className="mt-6 text-center">
-          <Link to="/" className="text-zinc-600 text-sm hover:text-white transition-colors">
-            <i className="fa-solid fa-arrow-left mr-2"></i>
-            Back to home
-          </Link>
-        </div>
-      </motion.div>
-    </div>
-  );
+// Lemon Squeezy checkout URLs
+const CHECKOUT_URLS: Record<string, string> = {
+  solo: 'https://viralaudit-ai.lemonsqueezy.com/buy/ef67a047-4604-42b4-b8f1-3e640c9268e8',
+  pro: 'https://viralaudit-ai.lemonsqueezy.com/buy/e95826a6-eef0-4384-832c-00b301196937',
+  agency: 'https://viralaudit-ai.lemonsqueezy.com/buy/ffee3f7c-2894-45c4-914b-07ada34bc2d2',
 };
 
-export default AuthPage;
+// Plan details for display
+export const PLAN_DETAILS = {
+  free: {
+    name: 'Free',
+    price: 0,
+    auditsPerMonth: 3,
+    features: ['3 audits per month', 'Basic analysis', 'Community support'],
+  },
+  solo: {
+    name: 'Solo',
+    price: 49,
+    auditsPerMonth: 30,
+    features: ['30 audits per month', 'Full creative analysis', 'Hook & CTA scoring', 'PDF exports', 'Email support'],
+  },
+  pro: {
+    name: 'Pro',
+    price: 99,
+    auditsPerMonth: 100,
+    features: ['100 audits per month', 'Everything in Solo', 'Script rewrites', 'Competitor breakdowns', 'Priority support'],
+  },
+  agency: {
+    name: 'Agency',
+    price: 199,
+    auditsPerMonth: 999999, // Unlimited
+    features: ['Unlimited audits', 'Everything in Pro', 'White-label reports', 'Team collaboration', 'API access', 'Priority support'],
+  },
+};
+
+export type PlanType = keyof typeof PLAN_DETAILS;
+
+// ==========================================
+// INITIALIZE LEMON SQUEEZY
+// Call this once when your app loads
+// ==========================================
+export const initLemonSqueezy = (onSuccess?: () => void) => {
+  // Initialize Lemon Squeezy
+  if (window.createLemonSqueezy) {
+    window.createLemonSqueezy();
+  }
+
+  // Set up event handlers
+  if (window.LemonSqueezy?.Setup) {
+    window.LemonSqueezy.Setup({
+      eventHandler: (event: LemonSqueezyEvent) => {
+        switch (event.event) {
+          case 'Checkout.Success':
+            console.log('🎉 Checkout successful!', event.data);
+            onSuccess?.();
+            break;
+          case 'Checkout.Close':
+            console.log('Checkout closed');
+            break;
+          case 'PaymentMethodUpdate.Close':
+            console.log('Payment method update closed');
+            break;
+        }
+      },
+    });
+  }
+};
+
+// ==========================================
+// OPEN CHECKOUT
+// ==========================================
+export const openCheckout = (
+  plan: 'solo' | 'pro' | 'agency',
+  userId: string,
+  email: string,
+  options?: {
+    name?: string;
+    discountCode?: string;
+  }
+) => {
+  const baseUrl = CHECKOUT_URLS[plan];
+  const planDetails = PLAN_DETAILS[plan];
+  
+  if (!baseUrl || baseUrl.includes('REPLACE_')) {
+    console.error('⚠️ Checkout URL not configured for plan:', plan);
+    alert('Payment not configured yet. Please contact support.');
+    return;
+  }
+
+  // Track InitiateCheckout for TikTok
+  trackInitiateCheckout(plan, planDetails.price);
+
+  // Build checkout URL with custom data
+  const checkoutUrl = new URL(baseUrl);
+  
+  // Pass user data that will be included in webhooks
+  checkoutUrl.searchParams.set('checkout[custom][user_id]', userId);
+  checkoutUrl.searchParams.set('checkout[email]', email);
+  
+  // Optional: pre-fill customer name
+  if (options?.name) {
+    checkoutUrl.searchParams.set('checkout[name]', options.name);
+  }
+  
+  // Optional: apply discount code
+  if (options?.discountCode) {
+    checkoutUrl.searchParams.set('checkout[discount_code]', options.discountCode);
+  }
+
+  console.log('🍋 Opening Lemon Squeezy checkout:', checkoutUrl.toString());
+
+  // Open in new tab (more reliable than overlay)
+  window.open(checkoutUrl.toString(), '_blank');
+};
+
+// ==========================================
+// GET CHECKOUT URL (for custom implementations)
+// ==========================================
+export const getCheckoutUrl = (
+  plan: 'solo' | 'pro' | 'agency',
+  userId: string,
+  email: string
+): string => {
+  const baseUrl = CHECKOUT_URLS[plan];
+  const checkoutUrl = new URL(baseUrl);
+  
+  checkoutUrl.searchParams.set('embed', '1');
+  checkoutUrl.searchParams.set('checkout[custom][user_id]', userId);
+  checkoutUrl.searchParams.set('checkout[email]', email);
+  
+  return checkoutUrl.toString();
+};
+
+// ==========================================
+// OPEN CUSTOMER PORTAL
+// For managing subscriptions, updating payment, viewing invoices
+// ==========================================
+export const openCustomerPortal = () => {
+  window.open('https://app.lemonsqueezy.com/my-orders', '_blank');
+};
+
+// ==========================================
+// HELPER: Check if Lemon Squeezy is loaded
+// ==========================================
+export const isLemonSqueezyReady = (): boolean => {
+  return typeof window.LemonSqueezy !== 'undefined';
+};
