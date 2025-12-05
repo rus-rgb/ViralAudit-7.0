@@ -12,7 +12,8 @@ import { runTechnicalAnalysis, calculateTechnicalScore, countIssues } from "../u
 // ==========================================
 // CONFIGURATION
 // ==========================================
-const WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/";
+const STANDARD_WORKER_URL = "https://damp-wind-775f.rusdumitru122.workers.dev/";
+const MULTIMODEL_WORKER_URL = "https://viralaudit-6specialist.rusdumitru122.workers.dev/"; // 6-specialist deep analysis
 
 const BRUTAL_SYSTEM_PROMPT = `
 You are a brutally honest video ad expert who has watched 10,000+ ads. You've seen it all. You don't sugarcoat anything.
@@ -131,13 +132,22 @@ Return ONLY valid JSON. No markdown. No code blocks.
 const analyzeVideo = async (
   file: File,
   email: string,
-  onUploadProgress: (progress: number) => void
+  onUploadProgress: (progress: number) => void,
+  useDeepAnalysis: boolean = false
 ): Promise<AnalysisData> => {
   const formData = new FormData();
   formData.append("video", file);
   formData.append("mimeType", file.type);
   formData.append("licenseKey", email);
-  formData.append("systemPrompt", BRUTAL_SYSTEM_PROMPT);
+  
+  // Choose worker based on analysis mode
+  const workerUrl = useDeepAnalysis ? MULTIMODEL_WORKER_URL : STANDARD_WORKER_URL;
+  
+  if (useDeepAnalysis) {
+    formData.append("mode", "deep");
+  } else {
+    formData.append("systemPrompt", BRUTAL_SYSTEM_PROMPT);
+  }
 
   const response = await new Promise<Response>((resolve, reject) => {
     const xhr = new XMLHttpRequest();
@@ -152,8 +162,8 @@ const analyzeVideo = async (
     xhr.onerror = () => reject(new Error("Network error"));
     xhr.ontimeout = () => reject(new Error("Request timeout"));
 
-    xhr.open("POST", WORKER_URL);
-    xhr.timeout = 180000;
+    xhr.open("POST", workerUrl);
+    xhr.timeout = 300000; // 5 minutes for deep analysis
     xhr.send(formData);
   });
 
@@ -290,9 +300,13 @@ const NewAudit = () => {
   const [errorMessage, setErrorMessage] = useState("");
   const [compressionResult, setCompressionResult] = useState<CompressionResult | null>(null);
   const [technicalAnalysis, setTechnicalAnalysis] = useState<TechnicalAnalysis | null>(null);
+  const [useDeepAnalysis, setUseDeepAnalysis] = useState(false);
 
   const ffmpegSupported = isFFmpegSupported();
 
+  // Deep analysis available for Pro and Agency plans
+  const canUseDeepAnalysis = subscription.plan === 'pro' || subscription.plan === 'agency';
+  
   // Check if user has audits remaining
   const hasAuditsRemaining = subscription.auditsRemaining > 0;
 
@@ -377,10 +391,10 @@ const NewAudit = () => {
             uploadComplete = true;
             setStatus("ANALYZING");
             setProgress(0);
-            setStatusMessage("AI analyzing your ad...");
+            setStatusMessage(useDeepAnalysis ? "Deep AI analysis in progress..." : "AI analyzing your ad...");
           }
         }
-      });
+      }, useDeepAnalysis);
 
       // Stage 3: Analyze with simulated progress
       setStatus("ANALYZING");
@@ -662,6 +676,41 @@ const NewAudit = () => {
                 </>
               )}
 
+              {/* Deep Analysis Toggle - Pro/Agency only */}
+              {file && canUseDeepAnalysis && (
+                <div className="flex items-center justify-between p-4 bg-white/[0.03] border border-white/10 rounded-xl mb-4">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-amber-500/10 rounded-lg flex items-center justify-center">
+                      <i className="fa-solid fa-brain text-amber-400"></i>
+                    </div>
+                    <div>
+                      <p className="text-white font-medium text-sm">Multi-Model Deep Analysis</p>
+                      <p className="text-zinc-500 text-xs">Uses multiple AI specialists for more accurate feedback</p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => setUseDeepAnalysis(!useDeepAnalysis)}
+                    className={`relative w-12 h-6 rounded-full transition-colors ${
+                      useDeepAnalysis ? 'bg-amber-500' : 'bg-zinc-700'
+                    }`}
+                  >
+                    <div className={`absolute top-1 w-4 h-4 bg-white rounded-full transition-transform ${
+                      useDeepAnalysis ? 'translate-x-7' : 'translate-x-1'
+                    }`} />
+                  </button>
+                </div>
+              )}
+              
+              {/* Show badge if deep analysis not available */}
+              {file && !canUseDeepAnalysis && (
+                <div className="flex items-center gap-2 p-3 bg-zinc-800/50 border border-zinc-700 rounded-lg mb-4">
+                  <i className="fa-solid fa-lock text-zinc-500 text-xs"></i>
+                  <p className="text-zinc-500 text-xs">
+                    Multi-Model Deep Analysis available on Pro & Agency plans
+                  </p>
+                </div>
+              )}
+
               <button
                 onClick={runAnalysis}
                 disabled={!file || !hasAuditsRemaining}
@@ -669,8 +718,8 @@ const NewAudit = () => {
               >
                 {hasAuditsRemaining ? (
                   <>
-                    <i className="fa-solid fa-wand-magic-sparkles"></i>
-                    Run Deep Audit
+                    <i className={`fa-solid ${useDeepAnalysis ? 'fa-brain' : 'fa-wand-magic-sparkles'}`}></i>
+                    {useDeepAnalysis ? 'Run Deep Analysis' : 'Run Audit'}
                   </>
                 ) : (
                   <>
